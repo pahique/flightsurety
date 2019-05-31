@@ -1,0 +1,27 @@
+{
+  "name": "flightsurety",
+  "version": "1.0.0",
+  "description": "Blockchain project (Ethereum) for simple flight status and insurance, based on Udacity's project.",
+  "main": "src/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "bignumber.js": "^8.1.1",
+    "openzeppelin-solidity": "^2.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "truffle test test/FlightSurety.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pahique/flightsurety.git"
+  },
+  "author": "Paulo Henrique C. Oliveros",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pahique/flightsurety/issues"
+  },
+  "homepage": "https://github.com/pahique/flightsurety#readme"
+}
