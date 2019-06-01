@@ -1,9 +1,6 @@
 
 var Test = require('./config/TestConfig.js');
 var BigNumber = require('bignumber.js');
-//const web3 = require('web3');
-//import web3 from 'web3';
-
 
 
 contract('Flight Surety Tests', async (accounts) => {
@@ -97,7 +94,7 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline2 = accounts[2];
     // ACT
     try {
-        await config.flightSuretyApp.registerAirline(airline2, {from: config.firstAirline});
+        await config.flightSuretyApp.registerAirline(airline2, "Airline 2", {from: config.firstAirline});
     }
     catch(e) {
         console.log(e.message);
@@ -112,10 +109,10 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline2 = accounts[2];
     // ACT
     try {
-        let minimumFunds = await config.flightSuretyData.MINIMUM_FUNDS.call();
+        let minimumFunds = await config.flightSuretyData.minimumFunds.call();
         //console.log("minimumFunds", minimumFunds);
         await config.flightSuretyApp.fund({from: config.firstAirline, value: minimumFunds});
-        await config.flightSuretyApp.registerAirline(airline2, {from: config.firstAirline});
+        await config.flightSuretyApp.registerAirline(airline2, "Airline 2", {from: config.firstAirline});
     }
     catch(e) {
         console.log(e.message);
@@ -133,11 +130,11 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline5 = accounts[5];
     // ACT
     try {
-        let minimumFunds = await config.flightSuretyData.MINIMUM_FUNDS.call();
+        let minimumFunds = await config.flightSuretyData.minimumFunds.call();
         await config.flightSuretyApp.fund({from: config.firstAirline, value: minimumFunds});
-        await config.flightSuretyApp.registerAirline(airline3, {from: config.firstAirline});
-        await config.flightSuretyApp.registerAirline(airline4, {from: config.firstAirline});
-        await config.flightSuretyApp.registerAirline(airline5, {from: config.firstAirline});
+        await config.flightSuretyApp.registerAirline(airline3, "Airline 3", {from: config.firstAirline});
+        await config.flightSuretyApp.registerAirline(airline4, "Airline 4", {from: config.firstAirline});
+        await config.flightSuretyApp.registerAirline(airline5, "Airline 5", {from: config.firstAirline});
     }
     catch(e) {
         console.log(e.message);
@@ -161,12 +158,12 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline5 = accounts[5];
     // ACT
     try {
-        let minimumFunds = await config.flightSuretyData.MINIMUM_FUNDS.call();
+        let minimumFunds = await config.flightSuretyData.minimumFunds.call();
         await config.flightSuretyApp.fund({from: airline2, value: minimumFunds});
         await config.flightSuretyApp.fund({from: airline3, value: minimumFunds});
-        await config.flightSuretyApp.registerAirline(airline5, {from: config.firstAirline});
-        await config.flightSuretyApp.registerAirline(airline5, {from: airline2});
-        await config.flightSuretyApp.registerAirline(airline5, {from: airline3});
+        await config.flightSuretyApp.registerAirline(airline5, "Airline 5", {from: config.firstAirline});
+        await config.flightSuretyApp.registerAirline(airline5, "Airline 5", {from: airline2});
+        await config.flightSuretyApp.registerAirline(airline5, "Airline 5", {from: airline3});
     }
     catch(e) {
         console.log(e.message);
@@ -187,8 +184,8 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline6 = accounts[6];
     // ACT
     try {
-        await config.flightSuretyApp.registerAirline(airline6, {from: config.firstAirline});
-        await config.flightSuretyApp.registerAirline(airline6, {from: airline2});
+        await config.flightSuretyApp.registerAirline(airline6, "Airline 6", {from: config.firstAirline});
+        await config.flightSuretyApp.registerAirline(airline6, "Airline 6", {from: airline2});
     }
     catch(e) {
         console.log(e.message);
@@ -209,9 +206,9 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline6 = accounts[6];
     // ACT
     try {
-        await config.flightSuretyApp.registerAirline(airline6, {from: config.firstAirline});
-        await config.flightSuretyApp.registerAirline(airline6, {from: airline2});
-        await config.flightSuretyApp.registerAirline(airline6, {from: airline3});
+        await config.flightSuretyApp.registerAirline(airline6, "Airline 6", {from: config.firstAirline});
+        await config.flightSuretyApp.registerAirline(airline6, "Airline 6", {from: airline2});
+        await config.flightSuretyApp.registerAirline(airline6, "Airline 6", {from: airline3});
     }
     catch(e) {
         console.log(e.message);

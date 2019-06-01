@@ -26,7 +26,6 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
     uint256 constant AIRLINES_THRESHOLD = 4;
-    uint256 constant MINIMUM_FUNDING = 10 ether;
 
     address private contractOwner;          // Account used to deploy contract
 
@@ -98,19 +97,17 @@ contract FlightSuretyApp {
 
   
     function incrementVotes(address airline, address caller) internal {
-        if (airlineVoters[airline][caller] == false)  {
+        if (airlineVoters[airline][caller] == false)  {   // Count vote only once per airline
             airlineVoters[airline][caller] = true;
             airlineVotesCount[airline] = airlineVotesCount[airline].add(1);
         }
     }
 
-   event PassouAqui(uint256 codigo);
-
    /**
     * @dev Add an airline to the registration queue
     *
     */   
-    function registerAirline(address account) external requireIsOperational returns(bool success, uint256 votes) {
+    function registerAirline(address account, string calldata name) external requireIsOperational returns(bool success, uint256 votes) {
         require(flightSuretyData.isAirline(msg.sender), "Caller must be a registered airline");
         require(flightSuretyData.isFunded(msg.sender), "Caller airline has not been funded yet");
         require(!flightSuretyData.isAirline(account), "Airline already registered");
@@ -118,20 +115,23 @@ contract FlightSuretyApp {
         votes = 0;
         uint256 numAirlines = flightSuretyData.getNumAirlines();
         if (numAirlines < AIRLINES_THRESHOLD) {
-            flightSuretyData.registerAirline(account);
+            flightSuretyData.registerAirline(account, name);
             success = true;
         } else {
-            emit PassouAqui(numAirlines);
-            uint256 numVotesNeededx10 = numAirlines.mul(10).div(2);  // multiplied by 10 to avoid rounding
-            emit PassouAqui(numVotesNeededx10);
+            uint256 numVotesNeededx100 = numAirlines.mul(100).div(2);  // multiply by 100 before division to avoid rounding
             incrementVotes(account, msg.sender);
             votes = airlineVotesCount[account];
-            emit PassouAqui(votes.mul(10));
-            if (votes.mul(10) >= numVotesNeededx10) {
-                flightSuretyData.registerAirline(account);
+            if (votes.mul(100) >= numVotesNeededx100) {   // multiply votes by 100 to adjust comparison
+                flightSuretyData.registerAirline(account, name);
                 success = true;
             }
         }
+    }
+
+    function updateName(string calldata newName) external {
+        require(flightSuretyData.isAirline(msg.sender), "Caller must be a registered airline");
+        require(bytes(newName).length == 0, "Name is required");
+        flightSuretyData.updateName(msg.sender, newName);
     }
 
     function fund() external payable requireIsOperational {
@@ -144,29 +144,30 @@ contract FlightSuretyApp {
     * @dev Register a future flight for insuring.
     *
     */  
-    function registerFlight() external pure {
-
+    function registerFlight(address airline, string calldata flight, uint256 timestamp) external {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, timestamp, airline);
     }
     
    /**
     * @dev Called after oracle has updated flight status
     *
     */  
-    function processFlightStatus(address airline, string memory flight, uint256 timestamp, uint8 statusCode) internal pure {
+    function processFlightStatus(address airline, string memory flight, uint256 timestamp, uint8 statusCode) internal {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        flights[key].statusCode = statusCode;
     }
 
 
     // Generate a request for oracles to fetch flight information
     function fetchFlightStatus(address airline, string calldata flight, uint256 timestamp) external {
         uint8 index = getRandomIndex(msg.sender);
-
         // Generate a unique key for storing the request
         bytes32 key = keccak256(abi.encodePacked(index, airline, flight, timestamp));
         oracleResponses[key] = ResponseInfo({
                                                 requester: msg.sender,
                                                 isOpen: true
                                             });
-
         emit OracleRequest(index, airline, flight, timestamp);
     } 
 
@@ -222,10 +223,7 @@ contract FlightSuretyApp {
 
         uint8[3] memory indexes = generateIndexes(msg.sender);
 
-        oracles[msg.sender] = Oracle({
-                                        isRegistered: true,
-                                        indexes: indexes
-                                     });
+        oracles[msg.sender] = Oracle({ isRegistered: true, indexes: indexes });
     }
 
     function getMyIndexes() view external returns(uint8[3] memory) {
@@ -307,8 +305,9 @@ contract FlightSuretyApp {
 // Interface to the data contract FlightSuretyData.sol
 contract FlightSuretyData {
     function isOperational() external view returns(bool);
-    function registerAirline(address airline) external;
+    function registerAirline(address airline, string calldata name) external;
     function isAirline(address account) external view returns(bool);
+    function updateName(address airline, string calldata newName) external;
     function fund(address airline) external payable;
     function isFunded(address airline) external view returns(bool);
     function getNumAirlines() external view returns(uint256);

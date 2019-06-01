@@ -15,6 +15,8 @@ contract FlightSuretyData {
     mapping(address => bool) private authorizedCallers;                 // Addresses that can access this contract
 
     struct Airline {
+        string name;
+        address account;
         bool isRegistered;
         bool isFunded;
         uint256 funds;
@@ -23,8 +25,18 @@ contract FlightSuretyData {
     mapping(address => Airline) private airlines;  
     uint256 internal countAirlines = 0;
 
-    uint256 public constant MINIMUM_FUNDS = 10 ether;
+    uint256 public minimumFunds = 10 ether;
 
+    struct FlightInsurance {
+        address payable insuree;
+        uint256 amountPaid;
+        address airline;
+        string flight;
+        uint256 timestamp;
+    }
+
+    mapping(bytes32 => FlightInsurance[]) private flightInsurances;
+    mapping(address => uint256) private insureeToPayout;
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -35,10 +47,10 @@ contract FlightSuretyData {
     * @dev Constructor
     *      The deploying account becomes contractOwner
     */
-    constructor(address firstAirline) public {
+    constructor(address firstAirline, string memory name) public {
         contractOwner = msg.sender;
         //authorizedCallers[contractOwner] = true;
-        addAirline(firstAirline);
+        addAirline(firstAirline, name);
     }
 
     /********************************************************************************************/
@@ -95,6 +107,10 @@ contract FlightSuretyData {
         operational = mode;
     }
 
+    function updateMinimumFunds(uint256 newAmount) external requireContractOwner {
+        minimumFunds = newAmount;
+    }
+
     function authorizeCaller(address contractAddress) external requireContractOwner {
         authorizedCallers[contractAddress] = true;
     }
@@ -111,13 +127,13 @@ contract FlightSuretyData {
     * @dev Add an airline to the registration queue
     *      Can only be called from FlightSuretyApp contract
     */   
-    function registerAirline(address account) external requireIsCallerAuthorized {
-        addAirline(account);
+    function registerAirline(address account, string calldata name) external requireIsCallerAuthorized {
+        addAirline(account, name);
     }
 
-    function addAirline(address account) private {
+    function addAirline(address account, string memory name) private {
         countAirlines = countAirlines.add(1);
-        airlines[account] = Airline(true, false, 0);
+        airlines[account] = Airline(name, account, true, false, 0);
     }
 
     function isAirline(address account) public view returns(bool) {
@@ -128,23 +144,35 @@ contract FlightSuretyData {
         return countAirlines;
     }
 
+    function updateName(address airline, string calldata newName) external requireIsCallerAuthorized {
+        airlines[airline].name = newName;
+    }
+
    /**
     * @dev Buy insurance for a flight
     */   
-    function buy() external payable requireIsCallerAuthorized {
+    function buy(address payable byer, address airline, string calldata flight, uint256 timestamp) external payable requireIsCallerAuthorized {
+        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+        flightInsurances[flightKey].push(FlightInsurance(byer, msg.value, airline, flight, timestamp));
     }
 
     /**
      *  @dev Credits payouts to insurees
     */
-    function creditInsurees() external requireIsCallerAuthorized {
+    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 timestamp) external requireIsCallerAuthorized {
+        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+        for (uint i=0; i < flightInsurances[flightKey].length; i++) {
+            address insuree = flightInsurances[flightKey][i].insuree;
+            insureeToPayout[insuree] = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
+        }
     }
     
 
     /**
      *  @dev Transfers eligible payout funds to insuree
     */
-    function pay() external requireIsCallerAuthorized {
+    function pay(address payable insuree) external requireIsCallerAuthorized {
+        insuree.transfer(insureeToPayout[insuree]);
     }
 
    /**
@@ -157,20 +185,16 @@ contract FlightSuretyData {
 
     function incrementFunds(address airline, uint256 value) private {
         airlines[airline].funds = airlines[airline].funds.add(value);
-        if (hasEnoughFunds(airline) && airlines[airline].isFunded == false) {
+        if (airlines[airline].isFunded == false && airlines[airline].funds >= minimumFunds) {
             airlines[airline].isFunded = true;
         }
-    }
-
-    function hasEnoughFunds(address airline) internal view requireIsCallerAuthorized returns(bool) {
-        return airlines[airline].funds >= MINIMUM_FUNDS;
     }
 
     function isFunded(address airline) external view requireIsCallerAuthorized returns(bool) {
         return airlines[airline].isFunded;
     }
 
-    function getFlightKey(address airline, string memory flight, uint256 timestamp) pure internal returns(bytes32) {
+    function getFlightKey(address airline, string memory flight, uint256 timestamp) internal pure returns(bytes32) {
         return keccak256(abi.encodePacked(airline, flight, timestamp));
     }
 
