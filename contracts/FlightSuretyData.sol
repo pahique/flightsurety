@@ -38,6 +38,10 @@ contract FlightSuretyData {
     mapping(bytes32 => FlightInsurance[]) private flightInsurances;
     mapping(address => uint256) private insureeToPayout;
 
+    event InsuranceCreditAvailable(address indexed airline, string indexed flight, uint256 indexed timestamp);
+    event InsurancePaid(address indexed insuree, uint256 amount);
+
+
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
@@ -49,7 +53,6 @@ contract FlightSuretyData {
     */
     constructor(address firstAirline, string memory name) public {
         contractOwner = msg.sender;
-        //authorizedCallers[contractOwner] = true;
         addAirline(firstAirline, name);
     }
 
@@ -144,35 +147,8 @@ contract FlightSuretyData {
         return countAirlines;
     }
 
-    function updateName(address airline, string calldata newName) external requireIsCallerAuthorized {
+    function updateAirlineName(address airline, string calldata newName) external requireIsCallerAuthorized {
         airlines[airline].name = newName;
-    }
-
-   /**
-    * @dev Buy insurance for a flight
-    */   
-    function buy(address payable byer, address airline, string calldata flight, uint256 timestamp) external payable requireIsCallerAuthorized {
-        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
-        flightInsurances[flightKey].push(FlightInsurance(byer, msg.value, airline, flight, timestamp));
-    }
-
-    /**
-     *  @dev Credits payouts to insurees
-    */
-    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 timestamp) external requireIsCallerAuthorized {
-        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
-        for (uint i=0; i < flightInsurances[flightKey].length; i++) {
-            address insuree = flightInsurances[flightKey][i].insuree;
-            insureeToPayout[insuree] = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
-        }
-    }
-    
-
-    /**
-     *  @dev Transfers eligible payout funds to insuree
-    */
-    function pay(address payable insuree) external requireIsCallerAuthorized {
-        insuree.transfer(insureeToPayout[insuree]);
     }
 
    /**
@@ -192,6 +168,60 @@ contract FlightSuretyData {
 
     function isFunded(address airline) external view requireIsCallerAuthorized returns(bool) {
         return airlines[airline].isFunded;
+    }
+
+    function getCurrentFunds(address airline) external view requireIsCallerAuthorized returns(uint256) {
+        return airlines[airline].funds;
+    }
+
+   /**
+    * @dev Buy insurance for a flight
+    */   
+    function buy(address payable byer, address airline, string calldata flight, uint256 timestamp) external payable requireIsCallerAuthorized {
+        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+        flightInsurances[flightKey].push(FlightInsurance(byer, msg.value, airline, flight, timestamp));
+    }
+
+    /**
+     *  @dev Credits payouts to insurees
+    */
+    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 timestamp) external requireIsCallerAuthorized {
+        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+        for (uint i=0; i < flightInsurances[flightKey].length; i++) {
+            address insuree = flightInsurances[flightKey][i].insuree;
+            insureeToPayout[insuree] = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
+            airlines[airline].funds = airlines[airline].funds.sub(insureeToPayout[insuree]);
+        }
+        emit InsuranceCreditAvailable(airline, flight, timestamp);
+    }
+
+    /**
+     *  @dev Transfers eligible payout funds to insuree
+    */
+    function pay(address payable insuree) external requireIsCallerAuthorized {
+        uint256 amount = insureeToPayout[insuree];
+        delete(insureeToPayout[insuree]);
+        insuree.transfer(amount);
+        emit InsurancePaid(insuree, amount);
+    }
+
+    function getAmountPaidByInsuree(address payable insuree, 
+                                    address airline, 
+                                    string calldata flight, 
+                                    uint256 timestamp) external view requireIsCallerAuthorized returns(uint256 amount) 
+    {
+        amount = 0;
+        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+        for (uint i=0; i < flightInsurances[flightKey].length; i++) {
+            if (flightInsurances[flightKey][i].insuree == insuree) {
+                amount = flightInsurances[flightKey][i].amountPaid;
+                break;
+            }
+        }
+    }
+
+    function getAmountToBeReceived(address payable insuree) external view requireIsCallerAuthorized returns(uint256 amount) {
+        return insureeToPayout[insuree];
     }
 
     function getFlightKey(address airline, string memory flight, uint256 timestamp) internal pure returns(bytes32) {

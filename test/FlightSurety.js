@@ -219,4 +219,50 @@ contract('Flight Surety Tests', async (accounts) => {
     assert.equal(await config.flightSuretyData.getNumAirlines(), 6);
   });
 
+  it('(passenger) cannot buy insurance for a flight paying more than 1 ether', async() => {
+    // ARRANGE
+    let passenger = config.testAddresses[0];
+    // ACT
+    try {
+        let flight = "AD4061";
+        let timestamp = 201905311730;
+        let amountPaid = web3.utils.toWei("1.1", "ether");
+        await config.flightSuretyApp.registerFlight(flight, timestamp, "VCP", "POA", {from: config.firstAirline});
+        await expectThrow(config.flightSuretyApp.buyInsurance(config.firstAirline, flight, timestamp, {from: passenger, value: amountPaid}));
+    }
+    catch(e) {
+        assert.fail(e.message);
+    }
+  });
+
+  it('(passenger) can buy insurance for a flight paying up to 1 ether', async() => {
+    // ARRANGE
+    let passenger = config.testAddresses[0];
+    let flight = "AD4061";
+    let timestamp = 201905311730;
+    let amountPaid = web3.utils.toWei("0.5", "ether");
+    // ACT
+    try {
+        await config.flightSuretyApp.registerFlight(flight, timestamp, "VCP", "POA", {from: config.firstAirline});
+        await config.flightSuretyApp.buyInsurance(config.firstAirline, flight, timestamp, {from: passenger, value: amountPaid});
+    }
+    catch(e) {
+        assert.fail(e.message);
+    }
+    // ASSERT
+    let result = await config.flightSuretyApp.getAmountPaidByInsuree.call(config.firstAirline, flight, timestamp, {from: passenger});
+    assert.equal(result, amountPaid);
+  });
+
 });
+
+let expectThrow = async function(promise) {
+    try {
+        await promise;
+    } catch(error) {
+        assert.exists(error);
+        return;
+    }
+    assert.fail("Expected an error but didn't see one");
+}
+

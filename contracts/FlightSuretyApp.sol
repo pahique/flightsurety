@@ -25,7 +25,9 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
-    uint256 constant AIRLINES_THRESHOLD = 4;
+    uint256 private constant AIRLINES_THRESHOLD = 4;
+    uint256 public constant MAX_INSURANCE_COST = 1 ether;
+    uint256 public constant INSURANCE_RETURN_PERCENTAGE = 150;
 
     address private contractOwner;          // Account used to deploy contract
 
@@ -34,6 +36,8 @@ contract FlightSuretyApp {
         uint8 statusCode;
         uint256 updatedTimestamp;        
         address airline;
+        string originAirport;
+        string destinationAirport;
     }
 
     mapping(bytes32 => Flight) private flights;
@@ -128,10 +132,10 @@ contract FlightSuretyApp {
         }
     }
 
-    function updateName(string calldata newName) external {
+    function updateAirlineName(string calldata newName) external requireIsOperational {
         require(flightSuretyData.isAirline(msg.sender), "Caller must be a registered airline");
         require(bytes(newName).length == 0, "Name is required");
-        flightSuretyData.updateName(msg.sender, newName);
+        flightSuretyData.updateAirlineName(msg.sender, newName);
     }
 
     function fund() external payable requireIsOperational {
@@ -144,9 +148,14 @@ contract FlightSuretyApp {
     * @dev Register a future flight for insuring.
     *
     */  
-    function registerFlight(address airline, string calldata flight, uint256 timestamp) external {
-        bytes32 key = getFlightKey(airline, flight, timestamp);
-        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, timestamp, airline);
+    function registerFlight(string calldata flight, 
+                    uint256 timestamp, 
+                    string calldata originAirport, 
+                    string calldata destinationAirport) external {
+        require(flightSuretyData.isAirline(msg.sender), "Only airlines can register flights");
+        require(flightSuretyData.isFunded(msg.sender), "Caller airline has not been funded yet");
+        bytes32 key = getFlightKey(msg.sender, flight, timestamp);
+        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, timestamp, msg.sender, originAirport, destinationAirport);
     }
     
    /**
@@ -164,13 +173,31 @@ contract FlightSuretyApp {
         uint8 index = getRandomIndex(msg.sender);
         // Generate a unique key for storing the request
         bytes32 key = keccak256(abi.encodePacked(index, airline, flight, timestamp));
-        oracleResponses[key] = ResponseInfo({
-                                                requester: msg.sender,
-                                                isOpen: true
-                                            });
+        oracleResponses[key] = ResponseInfo({requester: msg.sender, isOpen: true});
         emit OracleRequest(index, airline, flight, timestamp);
     } 
 
+    function buyInsurance(address airline, string calldata flight, uint256 timestamp) external payable requireIsOperational {
+        require(msg.value <= MAX_INSURANCE_COST, "Value sent is above maximum allowed");
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        require(flights[key].isRegistered == true, "Flight not registered");
+        flightSuretyData.buy.value(msg.value)(msg.sender, airline, flight, timestamp);
+    }
+
+    function withdrawCompensation() external requireIsOperational {
+        require(flightSuretyData.getAmountToBeReceived(msg.sender) > 0, "No compensation to be received");
+        flightSuretyData.pay(msg.sender);
+    }
+
+    function getAmountPaidByInsuree(address airline, string calldata flight, uint256 timestamp) external view returns(uint256) {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        require(flights[key].isRegistered == true, "Flight not registered");
+        return flightSuretyData.getAmountPaidByInsuree(msg.sender, airline, flight, timestamp);
+    }
+
+    function getAmountToBeReceived() external view returns(uint256) {
+        return flightSuretyData.getAmountToBeReceived(msg.sender);
+    }
 
 // region ORACLE MANAGEMENT
 
@@ -303,15 +330,17 @@ contract FlightSuretyApp {
 }   
 
 // Interface to the data contract FlightSuretyData.sol
-contract FlightSuretyData {
+interface FlightSuretyData {
     function isOperational() external view returns(bool);
     function registerAirline(address airline, string calldata name) external;
+    function getNumAirlines() external view returns(uint256);
     function isAirline(address account) external view returns(bool);
-    function updateName(address airline, string calldata newName) external;
+    function updateAirlineName(address airline, string calldata newName) external;
     function fund(address airline) external payable;
     function isFunded(address airline) external view returns(bool);
-    function getNumAirlines() external view returns(uint256);
-    function buy() external payable;
-    function creditInsurees() external;
-    function pay() external;
+    function getCurrentFunds(address airline) external view returns(uint256);
+    function buy(address payable byer, address airline, string calldata flight, uint256 timestamp) external payable;
+    function getAmountPaidByInsuree(address payable insuree, address airline, string calldata flight, uint256 timestamp) external view returns(uint256 amount);    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 timestamp) external;
+    function getAmountToBeReceived(address payable insuree) external view returns(uint256 amount);
+    function pay(address payable insuree) external;
 }
