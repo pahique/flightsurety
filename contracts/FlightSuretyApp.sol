@@ -36,8 +36,8 @@ contract FlightSuretyApp {
         uint8 statusCode;
         uint256 updatedTimestamp;        
         address airline;
-        string originAirport;
-        string destinationAirport;
+        string departureAirport;
+        string arrivalAirport;
     }
 
     mapping(bytes32 => Flight) private flights;
@@ -47,6 +47,7 @@ contract FlightSuretyApp {
     mapping(address => mapping(address => bool)) private airlineVoters;
     mapping(address => uint256) private airlineVotesCount;
 
+    event FlightRegistered(address indexed airline, string indexed flight, uint256 timestamp, string departureAirport, string arrivalAirport);
 
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
@@ -154,12 +155,13 @@ contract FlightSuretyApp {
     */  
     function registerFlight(string calldata flight, 
                     uint256 timestamp, 
-                    string calldata originAirport, 
-                    string calldata destinationAirport) external {
+                    string calldata departureAirport, 
+                    string calldata arrivalAirport) external {
         require(flightSuretyData.isAirline(msg.sender), "Only airlines can register flights");
         require(flightSuretyData.isFunded(msg.sender), "Caller airline has not been funded yet");
         bytes32 key = getFlightKey(msg.sender, flight, timestamp);
-        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, timestamp, msg.sender, originAirport, destinationAirport);
+        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, timestamp, msg.sender, departureAirport, arrivalAirport);
+        emit FlightRegistered(msg.sender, flight, timestamp, departureAirport, arrivalAirport);
     }
     
    /**

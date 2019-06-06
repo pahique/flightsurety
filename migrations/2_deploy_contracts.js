@@ -2,12 +2,16 @@ const FlightSuretyApp = artifacts.require("FlightSuretyApp");
 const FlightSuretyData = artifacts.require("FlightSuretyData");
 const fs = require('fs');
 
-module.exports = function(deployer) {
+module.exports = function(deployer, network, accounts) {
 
     let firstAirline = '0xf17f52151EbEF6C7334FAD080c5704D77216b732';
+    //let firstAirline = accounts[1];
     let firstAirlineName = 'Airline One';
     deployer.deploy(FlightSuretyData, firstAirline, firstAirlineName).then(() => {
+        return FlightSuretyData.deployed();
+    }).then((dataContractInstance) => {
         return deployer.deploy(FlightSuretyApp, FlightSuretyData.address).then(() => {
+            dataContractInstance.authorizeCaller(FlightSuretyApp.address);
             let config = {
                 localhost: {
                     url: 'http://localhost:8545',
@@ -20,3 +24,10 @@ module.exports = function(deployer) {
         });
     });
 }
+
+// deployer.deploy(Storage)
+//     .then(() => Storage.deployed())
+//     .then((instance) => {
+//         instance.addData("Hello", "world")
+//     }).then(() => deployer.deploy(InfoManager, Storage.address));
+    

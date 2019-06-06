@@ -38,8 +38,10 @@ contract FlightSuretyData {
     mapping(bytes32 => FlightInsurance[]) private flightInsurances;
     mapping(address => uint256) private insureeToPayout;
 
+    event AirlineRegistered(address indexed account, string name);
+    event AirlineFunded(address indexed account);
     event InsuranceCreditAvailable(address indexed airline, string indexed flight, uint256 indexed timestamp);
-    event InsuranceCreditAvailable(address indexed insuree, uint256 amount);
+    event InsuranceCredited(address indexed insuree, uint256 amount);
     event InsurancePaid(address indexed insuree, uint256 amount);
 
 
@@ -138,10 +140,11 @@ contract FlightSuretyData {
     function addAirline(address account, string memory name) private {
         countAirlines = countAirlines.add(1);
         airlines[account] = Airline(name, account, true, false, 0);
+        emit AirlineRegistered(account, name);
     }
 
     function isAirline(address account) public view returns(bool) {
-        return airlines[account].isRegistered;
+        return airlines[account].isRegistered == true;
     }
 
     function getNumAirlines() external view returns(uint256) {
@@ -164,6 +167,7 @@ contract FlightSuretyData {
         airlines[airline].funds = airlines[airline].funds.add(value);
         if (airlines[airline].isFunded == false && airlines[airline].funds >= minimumFunds) {
             airlines[airline].isFunded = true;
+            emit AirlineFunded(airline);
         }
     }
 
@@ -192,7 +196,7 @@ contract FlightSuretyData {
             address insuree = flightInsurances[flightKey][i].insuree;
             insureeToPayout[insuree] = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
             airlines[airline].funds = airlines[airline].funds.sub(insureeToPayout[insuree]);
-            emit InsuranceCreditAvailable(insuree, insureeToPayout[insuree]);
+            emit InsuranceCredited(insuree, insureeToPayout[insuree]);
         }
         emit InsuranceCreditAvailable(airline, flight, timestamp);
     }
@@ -230,6 +234,10 @@ contract FlightSuretyData {
         return keccak256(abi.encodePacked(airline, flight, timestamp));
     }
 
+    function getAirlines() external {
+
+    }
+
     /**
     * @dev Fallback function for funding smart contract.
     */
@@ -238,7 +246,6 @@ contract FlightSuretyData {
         require(isAirline(msg.sender), "Caller must be a registered airline");
         incrementFunds(msg.sender, msg.value);
     }
-
 
 }
 
