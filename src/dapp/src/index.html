@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Surety Dapp</title>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+  <main>
+    <h1>Flight Surety</h1>
+
+    <section>
+      <h1>Contract Information</h1>
+      <div>
+        <p>Owner:&nbsp;<span id="owner">loading...</span></p>
+        <p>Status:&nbsp;<span id="operational">loading...</span></p>
+        <p>Current user:&nbsp;<span id="currentUser">loading...</span>&nbsp;<span id="isAirline"></span></p>
+        <p id="status"></p>
+      </div>
+    </section>
+
+    <section>
+      <h1>Airlines</h1>
+      <div>
+        <label for="airlineAddress">Address</label>
+        <input id="airlineAddress" type="text"/>
+        <label for="airlineName">Name</label>
+        <input id="airlineName" type="text"/>
+      </div>
+      <div>
+      <button onclick="App.registerAirlne()">Register airline</button>
+      <hr/>
+      <h1>Registered airlines</h1>
+      <div>
+        <ol id="airlinesList">loading...</ol>
+      </div>
+      <button onclick="App.fetchAirlines()">Fetch airlines</button>
+      <hr/>
+      <div>
+          <label for="fundsToSend">Funds to send</label>
+          <input id="fundsToSend" type="text" placeholder="Amount in ETH"/>
+        </div>
+        <button onclick="App.sendFunds()">Send funds</button>
+      </div>
+    </section>
+
+    <section>
+      <h1>Flights</h1>
+      <div>
+        <label for="flightNumber">Flight Number</label>
+        <input id="flightNumber" type="text"/>
+        <label for="departureTime">Departure Time</label>
+        <input id="departureTime" type="text"/>
+        <label for="departureAirport">Departure Airport</label>
+        <input id="departureAirport" type="text"/>
+        <label for="arrivalAirport">Arrival Airport</label>
+        <input id="arrivalAirport" type="text"/>
+      </div>
+      <button onclick="App.registerFlight()">Register flight</button>
+      <hr/>
+      <h1>Registered flights</h1>
+      <div>
+        <ol id="flightList">loading...</ol>
+      </div>
+      <button onclick="App.fetchFlights()">Fetch flights</button>
+    </section>
+
+    <section>
+      <h1>Passengers</h1>
+      <div>
+          <label for="flightSelect">Flight</label>
+          <select id="flightSelect">
+            loading...
+          </select>
+          <label for="insurancePrice">Insurance price</label>
+          <input id="insurancePrice" type="text" placeholder="Amount in ETH"/>
+         </div>
+      <button onclick="App.buyInsurance()">Buy insurance</button>
+      <hr/>
+      <h1>Insurances bought by passenger</h1>
+      <div>
+        <ol id="insuranceList"></ol>
+      </div>
+      <button onclick="App.fetchInsurances()">Fetch insurances</button>
+      <hr/>
+      <button onclick="App.checkCredits()">Check credits</button>
+      <button onclick="App.withdrawCompensation()">Withdraw compensation</button>
+    </section>
+  </main>
+
+  <script src="./index.js"></script>
+</body>
+</html>
+
+    <!-- <h1>Send MetaCoin</h1>
+
+    <label for="amount">Amount:</label>
+    <input type="text" id="amount" placeholder="e.g. 95" />
+
+    <label for="receiver">To address:</label>
+    <input
+      type="text"
+      id="receiver"
+      placeholder="e.g. 0x93e66d9baea28c17d9fc393b53e3fbdd76899dae"
+    />
+
+    <button onclick="App.sendCoin()">Send MetaCoin</button>
+
+    <p id="status"></p>
+    <p>
+      <strong>Hint:</strong> open the browser developer console to view any
+      errors and warnings.
+    </p> -->

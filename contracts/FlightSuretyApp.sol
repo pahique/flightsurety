@@ -47,7 +47,7 @@ contract FlightSuretyApp {
     mapping(address => mapping(address => bool)) private airlineVoters;
     mapping(address => uint256) private airlineVotesCount;
 
-    event FlightRegistered(address indexed airline, string indexed flight, uint256 timestamp, string departureAirport, string arrivalAirport);
+    event FlightRegistered(address indexed airline, string indexed indexedFlight, string flight, uint256 timestamp, string departureAirport, string arrivalAirport);
 
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
@@ -161,7 +161,7 @@ contract FlightSuretyApp {
         require(flightSuretyData.isFunded(msg.sender), "Caller airline has not been funded yet");
         bytes32 key = getFlightKey(msg.sender, flight, timestamp);
         flights[key] = Flight(true, STATUS_CODE_UNKNOWN, timestamp, msg.sender, departureAirport, arrivalAirport);
-        emit FlightRegistered(msg.sender, flight, timestamp, departureAirport, arrivalAirport);
+        emit FlightRegistered(msg.sender, flight, flight, timestamp, departureAirport, arrivalAirport);
     }
     
    /**
@@ -184,6 +184,7 @@ contract FlightSuretyApp {
     } 
 
     function buyInsurance(address airline, string calldata flight, uint256 timestamp) external payable requireIsOperational {
+        require(!flightSuretyData.isAirline(msg.sender), "Airlines cannot buy flight insurance");
         require(msg.value <= MAX_INSURANCE_COST, "Value sent is above maximum allowed");
         bytes32 key = getFlightKey(airline, flight, timestamp);
         require(flights[key].isRegistered == true, "Flight not registered");

@@ -40,6 +40,7 @@ contract FlightSuretyData {
 
     event AirlineRegistered(address indexed account, string name);
     event AirlineFunded(address indexed account);
+    event InsuranceBought(address indexed passenger, uint256 price, address airline, string flight, uint256 timestamp);
     event InsuranceCreditAvailable(address indexed airline, string indexed flight, uint256 indexed timestamp);
     event InsuranceCredited(address indexed insuree, uint256 amount);
     event InsurancePaid(address indexed insuree, uint256 amount);
@@ -185,6 +186,7 @@ contract FlightSuretyData {
     function buy(address payable byer, address airline, string calldata flight, uint256 timestamp) external payable requireIsCallerAuthorized {
         bytes32 flightKey = getFlightKey(airline, flight, timestamp);
         flightInsurances[flightKey].push(FlightInsurance(byer, msg.value, airline, flight, timestamp));
+        emit InsuranceBought(byer, msg.value, airline, flight, timestamp);
     }
 
     /**

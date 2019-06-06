@@ -1,0 +1,95 @@
+body, main, section, article, nav, footer, header, button, input, div, h1, p {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-sizing: border-box;
+} 
+
+body {
+    font-family: 'Roboto', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif';
+    font-size: 1.5vw;
+    color: whitesmoke;
+    background-image: url('./flight.jpg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: top;
+    background-origin: border-box;
+  }
+
+main {
+    display: flex;
+    flex-flow: column nowrap;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+main>h1 {
+    padding: 2rem;
+    font-size: 4vw;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+section {
+    width: 80%;
+    margin: 0.5rem 1rem;
+    padding: 1rem 2rem;
+    background-color: rgba(5, 1, 1, 0.5)
+}
+
+section h1 {
+    color: lightskyblue;
+}
+
+section div {
+    padding: 1rem 0;
+}
+
+button {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    font-size: inherit;
+    font-weight: bold;
+    background-color: deepskyblue;
+    color: whitesmoke;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+}
+
+input {
+    width: 100%;
+    display: block;
+    padding: 12px 5px;
+    margin: 10px 0;
+    margin-bottom: 12px;
+}
+
+select {
+    display: block;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-size: inherit;
+}
+
+span {
+    font-weight: bold;
+}
+
+.operational {
+    color: lightgreen;
+}
+
+.notOperational {
+    color: red;
+}
+
+.airline {
+    color: deepskyblue;
+}
+
+.notAirline {
+    color: orange;
+}
