@@ -29,7 +29,7 @@ contract FlightSuretyApp {
     uint256 public constant MAX_INSURANCE_COST = 1 ether;
     uint256 public constant INSURANCE_RETURN_PERCENTAGE = 150;
 
-    address private contractOwner;          // Account used to deploy contract
+    address public contractOwner;          // Account used to deploy contract
 
     struct Flight {
         bool isRegistered;
@@ -93,6 +93,10 @@ contract FlightSuretyApp {
 
     function isOperational() public view returns(bool) {
         return flightSuretyData.isOperational();  
+    }
+
+    function isAirline() public view returns(bool) {
+        return flightSuretyData.isAirline(msg.sender);  
     }
 
     /********************************************************************************************/
@@ -340,7 +344,8 @@ interface FlightSuretyData {
     function isFunded(address airline) external view returns(bool);
     function getCurrentFunds(address airline) external view returns(uint256);
     function buy(address payable byer, address airline, string calldata flight, uint256 timestamp) external payable;
-    function getAmountPaidByInsuree(address payable insuree, address airline, string calldata flight, uint256 timestamp) external view returns(uint256 amount);    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 timestamp) external;
+    function getAmountPaidByInsuree(address payable insuree, address airline, string calldata flight, uint256 timestamp) external view returns(uint256 amount);    
+    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 timestamp) external;
     function getAmountToBeReceived(address payable insuree) external view returns(uint256 amount);
     function pay(address payable insuree) external;
 }

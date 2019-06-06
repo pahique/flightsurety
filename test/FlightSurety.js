@@ -19,7 +19,7 @@ contract('Flight Surety Tests', async (accounts) => {
     // inits test data
     config = await Test.Config(accounts);
     // authorizes app contract to call data contract
-    await config.flightSuretyData.authorizeCaller(config.flightSuretyApp.address);
+    await config.flightSuretyData.authorizeCaller(config.flightSuretyApp.address, {from: config.owner});
   });
 
   after(async () => {
@@ -237,21 +237,84 @@ contract('Flight Surety Tests', async (accounts) => {
 
   it('(passenger) can buy insurance for a flight paying up to 1 ether', async() => {
     // ARRANGE
-    let passenger = config.testAddresses[0];
+    let passenger1 = config.testAddresses[0];
     let flight = "AD4061";
     let timestamp = 201905311730;
     let amountPaid = web3.utils.toWei("0.5", "ether");
     // ACT
     try {
         await config.flightSuretyApp.registerFlight(flight, timestamp, "VCP", "POA", {from: config.firstAirline});
-        await config.flightSuretyApp.buyInsurance(config.firstAirline, flight, timestamp, {from: passenger, value: amountPaid});
+        await config.flightSuretyApp.buyInsurance(config.firstAirline, flight, timestamp, {from: passenger1, value: amountPaid});
     }
     catch(e) {
         assert.fail(e.message);
     }
     // ASSERT
-    let result = await config.flightSuretyApp.getAmountPaidByInsuree.call(config.firstAirline, flight, timestamp, {from: passenger});
+    let result = await config.flightSuretyApp.getAmountPaidByInsuree.call(config.firstAirline, flight, timestamp, {from: passenger1});
     assert.equal(result, amountPaid);
+  });
+
+  it('(passengers) receive credit for the insurance bought', async() => {
+    // ARRANGE
+    let passenger2 = config.testAddresses[1];
+    let passenger3 = config.testAddresses[2];
+    let flight = "AD4062";
+    let timestamp = 201905312330;
+    let amountPaid2 = web3.utils.toWei("0.6", "ether");
+    let amountPaid3 = web3.utils.toWei("0.4", "ether");
+    let percentage = 150;
+    let fundsBefore;
+    let fundsAfter;
+    // ACT
+    try {
+        fundsBefore = await config.flightSuretyData.getCurrentFunds(config.firstAirline);
+        //console.log(BigNumber(fundsBefore).toNumber());
+        await config.flightSuretyApp.registerFlight(flight, timestamp, "VCP", "SSA", {from: config.firstAirline});
+        await config.flightSuretyApp.buyInsurance(config.firstAirline, flight, timestamp, {from: passenger2, value: amountPaid2});
+        await config.flightSuretyApp.buyInsurance(config.firstAirline, flight, timestamp, {from: passenger3, value: amountPaid3});
+        await config.flightSuretyData.creditInsurees(percentage, config.firstAirline, flight, timestamp, {from: config.owner});
+        fundsAfter = await config.flightSuretyData.getCurrentFunds(config.firstAirline);
+        //console.log(BigNumber(fundsAfter).toNumber());
+    }
+    catch(e) {
+        assert.fail(e.message);
+    }
+    // ASSERT
+    // Passenger2 credits
+    let paid2 = await config.flightSuretyApp.getAmountPaidByInsuree.call(config.firstAirline, flight, timestamp, {from: passenger2});
+    assert.equal(paid2, amountPaid2);
+    let credit2 = await config.flightSuretyApp.getAmountToBeReceived.call({from: passenger2});
+    assert.equal(credit2, amountPaid2 * percentage/100);
+    // Passenger3 credits
+    let paid3 = await config.flightSuretyApp.getAmountPaidByInsuree.call(config.firstAirline, flight, timestamp, {from: passenger3});
+    assert.equal(paid3, amountPaid3);
+    let credit3 = await config.flightSuretyApp.getAmountToBeReceived.call({from: passenger3});
+    assert.equal(credit3, amountPaid3 * percentage/100);
+    // Airline funds
+    assert.equal(BigNumber(fundsAfter).toNumber(), BigNumber(fundsBefore.sub(credit2).sub(credit3)).toNumber());
+  });
+
+  it('(passenger) can withdraw credits successfully', async() => {
+    // ARRANGE
+    let passenger2 = config.testAddresses[1];
+    let flight = "AD4062";
+    let timestamp = 201905312330;
+    let amountPaid2 = web3.utils.toWei("0.6", "ether");
+    let percentage = 150;
+    let compensation = amountPaid2 * percentage / 100;
+    let balanceBeforeTransaction;
+    let balanceAfterTransaction;
+    // ACT
+    try {
+        balanceBeforeTransaction = await web3.eth.getBalance(passenger2);
+        await config.flightSuretyApp.withdrawCompensation({from: passenger2, gasPrice: 0});
+        balanceAfterTransaction = await web3.eth.getBalance(passenger2);
+    }
+    catch(e) {
+        assert.fail(e.message);
+    }
+    // ASSERT
+    assert.equal(compensation, balanceAfterTransaction - balanceBeforeTransaction);
   });
 
 });

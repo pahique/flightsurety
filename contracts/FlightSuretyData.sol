@@ -39,6 +39,7 @@ contract FlightSuretyData {
     mapping(address => uint256) private insureeToPayout;
 
     event InsuranceCreditAvailable(address indexed airline, string indexed flight, uint256 indexed timestamp);
+    event InsuranceCreditAvailable(address indexed insuree, uint256 amount);
     event InsurancePaid(address indexed insuree, uint256 amount);
 
 
@@ -74,7 +75,7 @@ contract FlightSuretyData {
     }
 
     modifier requireIsCallerAuthorized() {
-        require(authorizedCallers[msg.sender] == true, "Caller is not authorized");
+        require(authorizedCallers[msg.sender] == true || msg.sender == contractOwner, "Caller is not authorized");
         _;
     }
 
@@ -191,6 +192,7 @@ contract FlightSuretyData {
             address insuree = flightInsurances[flightKey][i].insuree;
             insureeToPayout[insuree] = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
             airlines[airline].funds = airlines[airline].funds.sub(insureeToPayout[insuree]);
+            emit InsuranceCreditAvailable(insuree, insureeToPayout[insuree]);
         }
         emit InsuranceCreditAvailable(airline, flight, timestamp);
     }
