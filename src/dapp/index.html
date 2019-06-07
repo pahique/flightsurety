@@ -48,8 +48,10 @@
       <div>
         <label for="flightNumber">Flight Number</label>
         <input id="flightNumber" type="text"/>
-        <label for="departureTime">Departure Time</label>
-        <input id="departureTime" type="number" placeholder="For example: 201906201300"/>
+        <label for="departureTime">Scheduled Departure Time</label>
+        <input id="departureTime" type="number" placeholder="Example: 201906201300"/>
+        <label for="arrivalTime">Scheduled Arrival Time</label>
+        <input id="arrivalTime" type="number" placeholder="Example: 201906201730"/>
         <label for="departureAirport">Departure Airport</label>
         <input id="departureAirport" type="text" maxlength="3"/>
         <label for="arrivalAirport">Arrival Airport</label>
@@ -76,17 +78,18 @@
          </div>
       <button onclick="App.buyInsurance()">Buy insurance</button>
       <hr/>
-      <div>
-        <label for="flightStatus">Flight status</label>
-        <input id="flightStatus" value="" disabled/>
-      </div>
-      <button onclick="App.fetchFlightStatus()">Fetch Flight Status</button>
-      <hr/>
       <h2>Insurances bought by passenger</h2>
       <div>
         <ol id="insuranceList"></ol>
       </div>
       <button onclick="App.fetchInsurances()">Fetch insurances</button>
+      <hr/>
+      <div>
+        <label for="flightStatus">Flight status</label>
+        <input id="flightStatus" value="" disabled/>
+      </div>
+      <button onclick="App.fetchFlightStatus()">Fetch Flight Status</button>
+      <button onclick="App.claimCompensation()">Claim compensation</button>
       <hr/>
       <div>
         <label for="credits">Credits available</label>

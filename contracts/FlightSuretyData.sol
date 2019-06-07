@@ -32,7 +32,7 @@ contract FlightSuretyData {
         uint256 amountPaid;
         address airline;
         string flight;
-        uint256 timestamp;
+        uint256 scheduledDepartureTime;
     }
 
     mapping(bytes32 => FlightInsurance[]) private flightInsurances;
@@ -40,8 +40,8 @@ contract FlightSuretyData {
 
     event AirlineRegistered(address indexed account, string name);
     event AirlineFunded(address indexed account);
-    event InsuranceBought(address indexed passenger, uint256 price, address airline, string flight, uint256 timestamp);
-    event InsuranceCreditAvailable(address indexed airline, string indexed flight, uint256 indexed timestamp);
+    event InsuranceBought(address indexed passenger, uint256 price, address airline, string flight, uint256 scheduledDepartureTime);
+    event InsuranceCreditAvailable(address indexed airline, string indexed flight, uint256 indexed scheduledDepartureTime);
     event InsuranceCredited(address indexed insuree, uint256 amount);
     event InsurancePaid(address indexed insuree, uint256 amount);
 
@@ -183,24 +183,24 @@ contract FlightSuretyData {
    /**
     * @dev Buy insurance for a flight
     */   
-    function buy(address payable byer, address airline, string calldata flight, uint256 timestamp) external payable requireIsCallerAuthorized {
-        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
-        flightInsurances[flightKey].push(FlightInsurance(byer, msg.value, airline, flight, timestamp));
-        emit InsuranceBought(byer, msg.value, airline, flight, timestamp);
+    function buy(address payable byer, address airline, string calldata flight, uint256 scheduledDepartureTime) external payable requireIsCallerAuthorized {
+        bytes32 flightKey = getFlightKey(airline, flight, scheduledDepartureTime);
+        flightInsurances[flightKey].push(FlightInsurance(byer, msg.value, airline, flight, scheduledDepartureTime));
+        emit InsuranceBought(byer, msg.value, airline, flight, scheduledDepartureTime);
     }
 
     /**
      *  @dev Credits payouts to insurees
     */
-    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 timestamp) external requireIsCallerAuthorized {
-        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 scheduledDepartureTime) external requireIsCallerAuthorized {
+        bytes32 flightKey = getFlightKey(airline, flight, scheduledDepartureTime);
         for (uint i=0; i < flightInsurances[flightKey].length; i++) {
             address insuree = flightInsurances[flightKey][i].insuree;
             insureeToPayout[insuree] = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
             airlines[airline].funds = airlines[airline].funds.sub(insureeToPayout[insuree]);
             emit InsuranceCredited(insuree, insureeToPayout[insuree]);
         }
-        emit InsuranceCreditAvailable(airline, flight, timestamp);
+        emit InsuranceCreditAvailable(airline, flight, scheduledDepartureTime);
     }
 
     /**
@@ -216,10 +216,10 @@ contract FlightSuretyData {
     function getAmountPaidByInsuree(address payable insuree, 
                                     address airline, 
                                     string calldata flight, 
-                                    uint256 timestamp) external view requireIsCallerAuthorized returns(uint256 amount) 
+                                    uint256 scheduledDepartureTime) external view requireIsCallerAuthorized returns(uint256 amount) 
     {
         amount = 0;
-        bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+        bytes32 flightKey = getFlightKey(airline, flight, scheduledDepartureTime);
         for (uint i=0; i < flightInsurances[flightKey].length; i++) {
             if (flightInsurances[flightKey][i].insuree == insuree) {
                 amount = flightInsurances[flightKey][i].amountPaid;
@@ -232,12 +232,8 @@ contract FlightSuretyData {
         return insureeToPayout[insuree];
     }
 
-    function getFlightKey(address airline, string memory flight, uint256 timestamp) internal pure returns(bytes32) {
-        return keccak256(abi.encodePacked(airline, flight, timestamp));
-    }
-
-    function getAirlines() external {
-
+    function getFlightKey(address airline, string memory flight, uint256 scheduledDepartureTime) internal pure returns(bytes32) {
+        return keccak256(abi.encodePacked(airline, flight, scheduledDepartureTime));
     }
 
     /**

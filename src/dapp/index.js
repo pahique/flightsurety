@@ -134,14 +134,15 @@ const App = {
 
   registerFlight: async function() {
     const flight = document.getElementById("flightNumber").value;
-    const timestamp = document.getElementById("departureTime").value;
+    const departureTime = document.getElementById("departureTime").value;
+    const arrivalTime = document.getElementById("arrivalTime").value;
     const origAirport = document.getElementById("departureAirport").value;
     const destAirport = document.getElementById("arrivalAirport").value;
 
     this.setStatus("Initiating transaction... (please wait)");
 
     const { registerFlight } = this.appContract.methods;
-    await registerFlight(flight, timestamp, origAirport, destAirport).send({ from: this.currentUser });
+    await registerFlight(flight, departureTime, arrivalTime, origAirport, destAirport).send({ from: this.currentUser });
 
     this.setStatus("Transaction complete!");
   },
@@ -158,12 +159,12 @@ const App = {
           for (event of events) {
             //console.log(event);
             var itemNode = document.createElement("li");                 
-            var textnode = document.createTextNode(event.returnValues.flight + " - " + event.returnValues.timestamp + " - " + event.returnValues.airline);         
+            var textnode = document.createTextNode(event.returnValues.flight + " - " + event.returnValues.scheduledDepartureTime + " - " + event.returnValues.airline);         
             itemNode.appendChild(textnode);                              
             document.getElementById("flightList").appendChild(itemNode);     
 
             var option = document.createElement("option");                 
-            option.text = event.returnValues.flight + " - " + event.returnValues.timestamp + " - " + event.returnValues.airline;
+            option.text = event.returnValues.flight + " - " + event.returnValues.scheduledDepartureTime + " - " + event.returnValues.airline;
             document.getElementById("flightSelect").add(option); 
           }    
         }
@@ -176,7 +177,7 @@ const App = {
     let amount = web3.toWei(insurancePrice, "ether");
     const flightSelect = document.getElementById("flightSelect");
     let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
-    let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, timestamp, airline]
+    let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
     console.log("flightInfoArray", flightInfoArray);
     this.setStatus("Initiating transaction... (please wait)");
 
@@ -226,7 +227,7 @@ const App = {
   fetchFlightStatus: async function() {
     const flightSelect = document.getElementById("flightSelect");
     let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
-    let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, timestamp, airline]
+    let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
     console.log("flightInfoArray", flightInfoArray);
     this.setStatus("Initiating transaction... (please wait)");
 

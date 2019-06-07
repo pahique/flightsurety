@@ -34,7 +34,8 @@ contract FlightSuretyApp {
     struct Flight {
         bool isRegistered;
         uint8 statusCode;
-        uint256 updatedTimestamp;        
+        uint256 scheduledDepartureTime; 
+        uint256 scheduledArrivalTime;       
         address airline;
         string departureAirport;
         string arrivalAirport;
@@ -47,7 +48,15 @@ contract FlightSuretyApp {
     mapping(address => mapping(address => bool)) private airlineVoters;
     mapping(address => uint256) private airlineVotesCount;
 
-    event FlightRegistered(address indexed airline, string indexed indexedFlight, string flight, uint256 timestamp, string departureAirport, string arrivalAirport);
+    event FlightRegistered(
+        address indexed airline, 
+        string indexed indexedFlight, 
+        string flight, 
+        uint256 scheduledDepartureTime, 
+        uint256 scheduledArrivalTime, 
+        string departureAirport, 
+        string arrivalAirport
+    );
 
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
@@ -154,41 +163,46 @@ contract FlightSuretyApp {
     *
     */  
     function registerFlight(string calldata flight, 
-                    uint256 timestamp, 
+                    uint256 scheduledDepartureTime, 
+                    uint256 scheduledArrivalTime,
                     string calldata departureAirport, 
                     string calldata arrivalAirport) external {
         require(flightSuretyData.isAirline(msg.sender), "Only airlines can register flights");
         require(flightSuretyData.isFunded(msg.sender), "Caller airline has not been funded yet");
-        bytes32 key = getFlightKey(msg.sender, flight, timestamp);
-        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, timestamp, msg.sender, departureAirport, arrivalAirport);
-        emit FlightRegistered(msg.sender, flight, flight, timestamp, departureAirport, arrivalAirport);
+        require(scheduledArrivalTime > scheduledDepartureTime, "Arrival should be after departure");
+        bytes32 key = getFlightKey(msg.sender, flight, scheduledDepartureTime);
+        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, scheduledDepartureTime, scheduledArrivalTime, msg.sender, departureAirport, arrivalAirport);
+        emit FlightRegistered(msg.sender, flight, flight, scheduledDepartureTime, scheduledArrivalTime, departureAirport, arrivalAirport);
     }
     
    /**
     * @dev Called after oracle has updated flight status
     *
     */  
-    function processFlightStatus(address airline, string memory flight, uint256 timestamp, uint8 statusCode) internal {
-        bytes32 key = getFlightKey(airline, flight, timestamp);
+    function processFlightStatus(address airline, string memory flight, uint256 scheduledDepartureTime, uint8 statusCode) internal {
+        bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         flights[key].statusCode = statusCode;
+        if (statusCode == STATUS_CODE_LATE_AIRLINE && block.timestamp > flights[key].scheduledArrivalTime) {
+            flightSuretyData.creditInsurees(INSURANCE_RETURN_PERCENTAGE, airline, flight, scheduledDepartureTime);
+        }
     }
 
 
     // Generate a request for oracles to fetch flight information
-    function fetchFlightStatus(address airline, string calldata flight, uint256 timestamp) external {
+    function fetchFlightStatus(address airline, string calldata flight, uint256 scheduledDepartureTime) external {
         uint8 index = getRandomIndex(msg.sender);
         // Generate a unique key for storing the request
-        bytes32 key = keccak256(abi.encodePacked(index, airline, flight, timestamp));
+        bytes32 key = keccak256(abi.encodePacked(index, airline, flight, scheduledDepartureTime));
         oracleResponses[key] = ResponseInfo({requester: msg.sender, isOpen: true});
-        emit OracleRequest(index, airline, flight, timestamp);
+        emit OracleRequest(index, airline, flight, scheduledDepartureTime);
     } 
 
-    function buyInsurance(address airline, string calldata flight, uint256 timestamp) external payable requireIsOperational {
+    function buyInsurance(address airline, string calldata flight, uint256 scheduledDepartureTime) external payable requireIsOperational {
         require(!flightSuretyData.isAirline(msg.sender), "Airlines cannot buy flight insurance");
         require(msg.value <= MAX_INSURANCE_COST, "Value sent is above maximum allowed");
-        bytes32 key = getFlightKey(airline, flight, timestamp);
+        bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         require(flights[key].isRegistered == true, "Flight not registered");
-        flightSuretyData.buy.value(msg.value)(msg.sender, airline, flight, timestamp);
+        flightSuretyData.buy.value(msg.value)(msg.sender, airline, flight, scheduledDepartureTime);
     }
 
     function withdrawCompensation() external requireIsOperational {
@@ -196,10 +210,10 @@ contract FlightSuretyApp {
         flightSuretyData.pay(msg.sender);
     }
 
-    function getAmountPaidByInsuree(address airline, string calldata flight, uint256 timestamp) external view returns(uint256) {
-        bytes32 key = getFlightKey(airline, flight, timestamp);
+    function getAmountPaidByInsuree(address airline, string calldata flight, uint256 scheduledDepartureTime) external view returns(uint256) {
+        bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         require(flights[key].isRegistered == true, "Flight not registered");
-        return flightSuretyData.getAmountPaidByInsuree(msg.sender, airline, flight, timestamp);
+        return flightSuretyData.getAmountPaidByInsuree(msg.sender, airline, flight, scheduledDepartureTime);
     }
 
     function getAmountToBeReceived() external view returns(uint256) {
@@ -236,18 +250,18 @@ contract FlightSuretyApp {
     }
 
     // Track all oracle responses
-    // Key = hash(index, flight, timestamp)
+    // Key = hash(index, flight, scheduledDepartureTime)
     mapping(bytes32 => ResponseInfo) private oracleResponses;
 
     // Event fired each time an oracle submits a response
-    event FlightStatusInfo(address airline, string flight, uint256 timestamp, uint8 status);
+    event FlightStatusInfo(address airline, string flight, uint256 scheduledDepartureTime, uint8 status);
 
-    event OracleReport(address airline, string flight, uint256 timestamp, uint8 status);
+    event OracleReport(address airline, string flight, uint256 scheduledDepartureTime, uint8 status);
 
     // Event fired when flight status request is submitted
     // Oracles track this and if they have a matching index
     // they fetch data and submit a response
-    event OracleRequest(uint8 index, address airline, string flight, uint256 timestamp);
+    event OracleRequest(uint8 index, address airline, string flight, uint256 scheduledDepartureTime);
 
 
     // Register an oracle with the contract
@@ -272,32 +286,32 @@ contract FlightSuretyApp {
     // For the response to be accepted, there must be a pending request that is open
     // and matches one of the three Indexes randomly assigned to the oracle at the
     // time of registration (i.e. uninvited oracles are not welcome)
-    function submitOracleResponse(uint8 index, address airline, string calldata flight, uint256 timestamp, uint8 statusCode) external {
+    function submitOracleResponse(uint8 index, address airline, string calldata flight, uint256 scheduledDepartureTime, uint8 statusCode) external {
         require((oracles[msg.sender].indexes[0] == index) 
                 || (oracles[msg.sender].indexes[1] == index) 
                 || (oracles[msg.sender].indexes[2] == index), "Index does not match oracle request");
 
 
-        bytes32 key = keccak256(abi.encodePacked(index, airline, flight, timestamp)); 
-        require(oracleResponses[key].isOpen, "Flight or timestamp do not match oracle request");
+        bytes32 key = keccak256(abi.encodePacked(index, airline, flight, scheduledDepartureTime)); 
+        require(oracleResponses[key].isOpen, "Flight or scheduled departure time do not match oracle request");
 
         oracleResponses[key].responses[statusCode].push(msg.sender);
 
         // Information isn't considered verified until at least MIN_RESPONSES
         // oracles respond with the *** same *** information
-        emit OracleReport(airline, flight, timestamp, statusCode);
+        emit OracleReport(airline, flight, scheduledDepartureTime, statusCode);
         if (oracleResponses[key].responses[statusCode].length >= MIN_RESPONSES) {
 
-            emit FlightStatusInfo(airline, flight, timestamp, statusCode);
+            emit FlightStatusInfo(airline, flight, scheduledDepartureTime, statusCode);
 
             // Handle flight status as appropriate
-            processFlightStatus(airline, flight, timestamp, statusCode);
+            processFlightStatus(airline, flight, scheduledDepartureTime, statusCode);
         }
     }
 
 
-    function getFlightKey(address airline, string memory flight, uint256 timestamp) pure internal returns(bytes32) {
-        return keccak256(abi.encodePacked(airline, flight, timestamp));
+    function getFlightKey(address airline, string memory flight, uint256 scheduledDepartureTime) pure internal returns(bytes32) {
+        return keccak256(abi.encodePacked(airline, flight, scheduledDepartureTime));
     }
 
     // Returns array of three non-duplicating integers from 0-9
@@ -346,9 +360,9 @@ interface FlightSuretyData {
     function fund(address airline) external payable;
     function isFunded(address airline) external view returns(bool);
     function getCurrentFunds(address airline) external view returns(uint256);
-    function buy(address payable byer, address airline, string calldata flight, uint256 timestamp) external payable;
-    function getAmountPaidByInsuree(address payable insuree, address airline, string calldata flight, uint256 timestamp) external view returns(uint256 amount);    
-    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 timestamp) external;
+    function buy(address payable byer, address airline, string calldata flight, uint256 scheduledDepartureTime) external payable;
+    function getAmountPaidByInsuree(address payable insuree, address airline, string calldata flight, uint256 scheduledDepartureTime) external view returns(uint256 amount);    
+    function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 scheduledDepartureTime) external;
     function getAmountToBeReceived(address payable insuree) external view returns(uint256 amount);
     function pay(address payable insuree) external;
 }
