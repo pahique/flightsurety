@@ -1,7 +1,7 @@
 import Web3 from "web3";
-import appContractArtifact from "../../../build/contracts/FlightSuretyApp.json";
-import dataContractArtifact from "../../../build/contracts/FlightSuretyData.json";
-import configArtifact from "../config.json";
+import appContractArtifact from "../../build/contracts/FlightSuretyApp.json";
+import dataContractArtifact from "../../build/contracts/FlightSuretyData.json";
+import configArtifact from "./config.json";
 
 const App = {
   web3: null,
@@ -59,6 +59,8 @@ const App = {
       this.fetchAirlines();
       // Get registered flights
       this.fetchFlights();
+      // Get registered insurances 
+      this.fetchInsurances();
     } catch (error) {
       console.error("Could not connect to contract or chain.", error);
     }
@@ -147,18 +149,23 @@ const App = {
   fetchFlights: async function() {
     this.appContract.getPastEvents('FlightRegistered', {fromBlock: 0, toBLock: 'latest'}, (err, events) => {
       if (!err) {   
-        document.getElementById("flightList").innerHTML = "";
-        document.getElementById("flightSelect").innerHTML = "";
-        for (event of events) {
-          console.log(event);
-          var itemNode = document.createElement("li");                 
-          var textnode = document.createTextNode(event.returnValues.flight + " - " + event.returnValues.timestamp + " - " + event.returnValues.airline);         
-          itemNode.appendChild(textnode);                              
-          document.getElementById("flightList").appendChild(itemNode);     
+        if (events.length == 0) {
+          document.getElementById("flightList").innerHTML = "Not found";
+          document.getElementById("flightSelect").innerHTML = "";
+        } else {
+          document.getElementById("flightList").innerHTML = "";
+          document.getElementById("flightSelect").innerHTML = "";
+          for (event of events) {
+            //console.log(event);
+            var itemNode = document.createElement("li");                 
+            var textnode = document.createTextNode(event.returnValues.flight + " - " + event.returnValues.timestamp + " - " + event.returnValues.airline);         
+            itemNode.appendChild(textnode);                              
+            document.getElementById("flightList").appendChild(itemNode);     
 
-          var option = document.createElement("option");                 
-          option.text = event.returnValues.flight + " - " + event.returnValues.timestamp + " - " + event.returnValues.airline;
-          document.getElementById("flightSelect").add(option);     
+            var option = document.createElement("option");                 
+            option.text = event.returnValues.flight + " - " + event.returnValues.timestamp + " - " + event.returnValues.airline;
+            document.getElementById("flightSelect").add(option); 
+          }    
         }
       }
     });
@@ -182,18 +189,58 @@ const App = {
   fetchInsurances: function () {
     this.dataContract.getPastEvents('InsuranceBought', {filter: {passenger: this.currentUser}, fromBlock: 0, toBLock: 'latest'}, (err, events) => {
         if (!err) {   
-          document.getElementById("insuranceList").innerHTML = "";
-          for (event of events) {
-            //console.log(event);
-            let itemNode = document.createElement("li");                 
-            let priceEth = web3.fromWei(event.returnValues.price, "ether");
-            let textnode = document.createTextNode(event.returnValues.passenger + " - " + event.returnValues.flight + " - " + priceEth + " ETH");         
-            itemNode.appendChild(textnode);                              
-            document.getElementById("insuranceList").appendChild(itemNode);     
+          if (events.length == 0) {
+            document.getElementById("insuranceList").innerHTML = "Not found";
+          } else {
+            document.getElementById("insuranceList").innerHTML = "";
+            for (event of events) {
+              //console.log(event);
+              let itemNode = document.createElement("li");                 
+              let priceEth = web3.fromWei(event.returnValues.price, "ether");
+              let textnode = document.createTextNode(event.returnValues.passenger + " - " + event.returnValues.flight + " - " + priceEth + " ETH");         
+              itemNode.appendChild(textnode);                              
+              document.getElementById("insuranceList").appendChild(itemNode);     
+            }
           }
         }
     });
   },
+
+  checkCredits: async function() {
+    const { getAmountToBeReceived } = this.appContract.methods;
+    const creditsAmount = await getAmountToBeReceived().call({from: this.currentUser});
+    console.log("creditsAmount:", creditsAmount);
+    let creditsElement = document.getElementById("credits");
+    creditsElement.innerHTML = web3.fromWei(creditsAmount, "ether") + " ETH";
+  },
+
+  withdrawCredits: async function() {
+    this.setStatus("Initiating transaction... (please wait)");
+
+    const { withdrawCompensation } = this.appContract.methods;
+    await withdrawCompensation().send({ from: this.currentUser });
+
+    this.setStatus("Transaction complete!");
+  },
+
+  fetchFlightStatus: async function() {
+    const flightSelect = document.getElementById("flightSelect");
+    let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
+    let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, timestamp, airline]
+    console.log("flightInfoArray", flightInfoArray);
+    this.setStatus("Initiating transaction... (please wait)");
+
+    const { fetchFlightStatus } = this.appContract.methods;
+    await fetchFlightStatus(flightInfoArray[2], flightInfoArray[0], flightInfoArray[1]).send({ from: this.currentUser });
+
+    this.setStatus("Transaction complete!");
+  },
+  // STATUS_CODE_UNKNOWN = 0;
+  // STATUS_CODE_ON_TIME = 10;
+  // STATUS_CODE_LATE_AIRLINE = 20;
+  // STATUS_CODE_LATE_WEATHER = 30;
+  // STATUS_CODE_LATE_TECHNICAL = 40;
+  // STATUS_CODE_LATE_OTHER = 50;
 
   setStatus: function(message) {
     const status = document.getElementById("status");

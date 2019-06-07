@@ -2,24 +2,33 @@
   "name": "flightsurety",
   "version": "1.0.0",
   "description": "Blockchain project (Ethereum) for simple flight status and insurance, based on Udacity's project.",
-  "main": "src/index.js",
+  "author": "Paulo Henrique C. Oliveros",
+  "license": "ISC",
   "directories": {
     "test": "test"
   },
   "dependencies": {
     "bignumber.js": "^8.1.1",
-    "openzeppelin-solidity": "^2.2.0"
+    "openzeppelin-solidity": "^2.2.0",
+    "web3": "^1.0.0-beta.37"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "html-webpack-plugin": "^3.2.0",
+    "copy-webpack-plugin": "^4.6.0",
+    "webpack": "^4.28.1",
+    "webpack-cli": "^3.2.1",
+    "webpack-dev-server": "^3.1.14"
+  },
   "scripts": {
-    "test": "truffle test test/FlightSurety.js"
+    "test": "truffle test test/FlightSurety.js",
+    "dapp": "webpack-dev-server --mode development --config webpack.config.dapp.js",
+    "dapp:prod": "webpack --mode production  --config webpack.config.dapp.js",
+    "server": "rm -rf ./build/server && webpack --config server/webpack.config.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pahique/flightsurety.git"
   },
-  "author": "Paulo Henrique C. Oliveros",
-  "license": "ISC",
   "bugs": {
     "url": "https://github.com/pahique/flightsurety/issues"
   },
