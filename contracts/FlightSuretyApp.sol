@@ -34,6 +34,7 @@ contract FlightSuretyApp {
     struct Flight {
         bool isRegistered;
         uint8 statusCode;
+        uint256 updatedTimestamp;
         uint256 scheduledDepartureTime; 
         uint256 scheduledArrivalTime;       
         address airline;
@@ -171,7 +172,16 @@ contract FlightSuretyApp {
         require(flightSuretyData.isFunded(msg.sender), "Caller airline has not been funded yet");
         require(scheduledArrivalTime > scheduledDepartureTime, "Arrival should be after departure");
         bytes32 key = getFlightKey(msg.sender, flight, scheduledDepartureTime);
-        flights[key] = Flight(true, STATUS_CODE_UNKNOWN, scheduledDepartureTime, scheduledArrivalTime, msg.sender, departureAirport, arrivalAirport);
+        flights[key] = Flight(
+            true, 
+            STATUS_CODE_UNKNOWN, 
+            block.timestamp, 
+            scheduledDepartureTime, 
+            scheduledArrivalTime, 
+            msg.sender, 
+            departureAirport, 
+            arrivalAirport
+        );        
         emit FlightRegistered(msg.sender, flight, flight, scheduledDepartureTime, scheduledArrivalTime, departureAirport, arrivalAirport);
     }
     
@@ -181,12 +191,14 @@ contract FlightSuretyApp {
     */  
     function processFlightStatus(address airline, string memory flight, uint256 scheduledDepartureTime, uint8 statusCode) internal {
         bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
+        flights[key].updatedTimestamp = block.timestamp;
         flights[key].statusCode = statusCode;
-        if (statusCode == STATUS_CODE_LATE_AIRLINE && block.timestamp > flights[key].scheduledArrivalTime) {
-            flightSuretyData.creditInsurees(INSURANCE_RETURN_PERCENTAGE, airline, flight, scheduledDepartureTime);
-        }
     }
 
+    function getFlightStatusInfo(address airline, string calldata flight, uint256 scheduledDepartureTime) external view returns(uint256 statusCode, uint256 updateTimestamp) {
+        bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
+        return (flights[key].statusCode, flights[key].updatedTimestamp);
+    }
 
     // Generate a request for oracles to fetch flight information
     function fetchFlightStatus(address airline, string calldata flight, uint256 scheduledDepartureTime) external {
@@ -203,6 +215,14 @@ contract FlightSuretyApp {
         bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         require(flights[key].isRegistered == true, "Flight not registered");
         flightSuretyData.buy.value(msg.value)(msg.sender, airline, flight, scheduledDepartureTime);
+    }
+
+    function claimCompensation(address airline, string calldata flight, uint256 scheduledDepartureTime) external {
+        bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
+        require(flights[key].statusCode == STATUS_CODE_LATE_AIRLINE, "Status of the flight does not fit the requirements for compensation");
+        require(block.timestamp > flights[key].scheduledArrivalTime, "Claim not allowed yet, flight may still get on schedule");
+        require(flights[key].updatedTimestamp > flights[key].scheduledArrivalTime, "Claim not allowed yet, flight status not up to date");
+        flightSuretyData.creditInsurees(INSURANCE_RETURN_PERCENTAGE, airline, flight, scheduledDepartureTime);
     }
 
     function withdrawCompensation() external requireIsOperational {
@@ -262,25 +282,25 @@ contract FlightSuretyApp {
     // Oracles track this and if they have a matching index
     // they fetch data and submit a response
     event OracleRequest(uint8 index, address airline, string flight, uint256 scheduledDepartureTime);
+    event OracleRegistered(address account);
 
 
     // Register an oracle with the contract
     function registerOracle() external payable {
+        require(!oracles[msg.sender].isRegistered, "Oracle already registered");
         // Require registration fee
         require(msg.value >= REGISTRATION_FEE, "Registration fee is required");
 
         uint8[3] memory indexes = generateIndexes(msg.sender);
 
         oracles[msg.sender] = Oracle({ isRegistered: true, indexes: indexes });
+        emit OracleRegistered(msg.sender);
     }
 
     function getMyIndexes() view external returns(uint8[3] memory) {
         require(oracles[msg.sender].isRegistered, "Not registered as an oracle");
         return oracles[msg.sender].indexes;
     }
-
-
-
 
     // Called by oracle when a response is available to an outstanding request
     // For the response to be accepted, there must be a pending request that is open

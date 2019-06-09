@@ -87,8 +87,10 @@
       <div>
         <label for="flightStatus">Flight status</label>
         <input id="flightStatus" value="" disabled/>
+        <p id="lastUpdate" class="lastUpdate">&nbsp;</p>
       </div>
-      <button onclick="App.fetchFlightStatus()">Fetch Flight Status</button>
+      <button onclick="App.getFlightStatusInfo()">Get Flight Status</button>
+      <button onclick="App.requestFlightStatus()">Request Status Update</button>
       <button onclick="App.claimCompensation()">Claim compensation</button>
       <hr/>
       <div>

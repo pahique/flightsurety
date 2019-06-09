@@ -2,6 +2,7 @@ import Web3 from "web3";
 import appContractArtifact from "../../build/contracts/FlightSuretyApp.json";
 import dataContractArtifact from "../../build/contracts/FlightSuretyData.json";
 import configArtifact from "./config.json";
+import BigNumber from 'bignumber.js';
 
 const App = {
   web3: null,
@@ -166,15 +167,16 @@ const App = {
             var option = document.createElement("option");                 
             option.text = event.returnValues.flight + " - " + event.returnValues.scheduledDepartureTime + " - " + event.returnValues.airline;
             document.getElementById("flightSelect").add(option); 
-          }    
+          }  
         }
       }
     });
   },
 
   buyInsurance: async function() {
-    const insurancePrice = parseInt(document.getElementById("insurancePrice").value);
+    const insurancePrice = document.getElementById("insurancePrice").value;
     let amount = web3.toWei(insurancePrice, "ether");
+    console.log("Amount in wei:", amount);
     const flightSelect = document.getElementById("flightSelect");
     let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
     let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
@@ -189,42 +191,29 @@ const App = {
 
   fetchInsurances: function () {
     this.dataContract.getPastEvents('InsuranceBought', {filter: {passenger: this.currentUser}, fromBlock: 0, toBLock: 'latest'}, (err, events) => {
-        if (!err) {   
-          if (events.length == 0) {
-            document.getElementById("insuranceList").innerHTML = "Not found";
-          } else {
-            document.getElementById("insuranceList").innerHTML = "";
-            for (event of events) {
-              //console.log(event);
+      if (!err) {   
+        if (events.length == 0) {
+          document.getElementById("insuranceList").innerHTML = "Not found";
+        } else {
+          document.getElementById("insuranceList").innerHTML = "";
+          for (event of events) {
+            //console.log(event);
+            try {
               let itemNode = document.createElement("li");                 
-              let priceEth = web3.fromWei(event.returnValues.price, "ether");
+              let priceEth = web3.fromWei(BigNumber(event.returnValues.price).toNumber(), "ether");
               let textnode = document.createTextNode(event.returnValues.passenger + " - " + event.returnValues.flight + " - " + priceEth + " ETH");         
               itemNode.appendChild(textnode);                              
               document.getElementById("insuranceList").appendChild(itemNode);     
+            } catch(err) {
+              console.log(err);
             }
           }
         }
+      }
     });
   },
 
-  checkCredits: async function() {
-    const { getAmountToBeReceived } = this.appContract.methods;
-    const creditsAmount = await getAmountToBeReceived().call({from: this.currentUser});
-    console.log("creditsAmount:", creditsAmount);
-    let creditsElement = document.getElementById("credits");
-    creditsElement.innerHTML = web3.fromWei(creditsAmount, "ether") + " ETH";
-  },
-
-  withdrawCredits: async function() {
-    this.setStatus("Initiating transaction... (please wait)");
-
-    const { withdrawCompensation } = this.appContract.methods;
-    await withdrawCompensation().send({ from: this.currentUser });
-
-    this.setStatus("Transaction complete!");
-  },
-
-  fetchFlightStatus: async function() {
+  requestFlightStatus: async function() {
     const flightSelect = document.getElementById("flightSelect");
     let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
     let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
@@ -236,12 +225,65 @@ const App = {
 
     this.setStatus("Transaction complete!");
   },
-  // STATUS_CODE_UNKNOWN = 0;
-  // STATUS_CODE_ON_TIME = 10;
-  // STATUS_CODE_LATE_AIRLINE = 20;
-  // STATUS_CODE_LATE_WEATHER = 30;
-  // STATUS_CODE_LATE_TECHNICAL = 40;
-  // STATUS_CODE_LATE_OTHER = 50;
+
+  getFlightStatusInfo: async function () {
+    const flightSelect = document.getElementById("flightSelect");
+    let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
+    let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
+    const { getFlightStatusInfo } = this.appContract.methods;
+    let { statusCode, updateTimestamp } = await getFlightStatusInfo(flightInfoArray[2], flightInfoArray[0], flightInfoArray[1]).call();
+    let status = BigNumber(statusCode).toNumber();
+    console.log("statusCode:", status, "updateTimestamp:", BigNumber(updateTimestamp).toNumber());
+    let lastUpdate = new Date(BigNumber(updateTimestamp).toNumber() * 1000);
+    const STATUS_CODE_UNKNOWN = 0;
+    const STATUS_CODE_ON_TIME = 10;
+    const STATUS_CODE_LATE_AIRLINE = 20;
+    const STATUS_CODE_LATE_WEATHER = 30;
+    const STATUS_CODE_LATE_TECHNICAL = 40;
+    const STATUS_CODE_LATE_OTHER = 50;
+    let statusDescription = "UNKNOWN";
+    switch(status) {
+      case STATUS_CODE_UNKNOWN: statusDescription = "UNKNOWN"; break;
+      case STATUS_CODE_ON_TIME: statusDescription = "ON TIME"; break;
+      case STATUS_CODE_LATE_AIRLINE: statusDescription = "LATE (AIRLINE)"; break;
+      case STATUS_CODE_LATE_WEATHER: statusDescription = "LATE (WEATHER)"; break;
+      case STATUS_CODE_LATE_TECHNICAL: statusDescription = "LATE (TECHNICAL)"; break;
+      case STATUS_CODE_LATE_OTHER: statusDescription = "LATE (OTHER)"; break;
+    }
+    const flightStatusElement = document.getElementById("flightStatus");
+    flightStatusElement.value = statusDescription;
+    const lastUpdateElement = document.getElementById("lastUpdate");
+    lastUpdateElement.innerHTML = "Last update: " + lastUpdate.toString();
+  },
+
+  claimCompensation: async function() {
+    const flightSelect = document.getElementById("flightSelect");
+    let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
+    let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
+    this.setStatus("Initiating transaction... (please wait)");
+
+    const { claimCompensation } = this.appContract.methods;
+    await claimCompensation(flightInfoArray[2], flightInfoArray[0], flightInfoArray[1]).send({from: this.currentUser});
+
+    this.setStatus("Transaction complete!");
+  },
+
+  checkCredits: async function() {
+    const { getAmountToBeReceived } = this.appContract.methods;
+    const creditsAmount = await getAmountToBeReceived().call({from: this.currentUser});
+    console.log("creditsAmount:", BigNumber(creditsAmount).toNumber());
+    let creditsElement = document.getElementById("credits");
+    creditsElement.innerHTML = web3.fromWei(BigNumber(creditsAmount).toNumber(), "ether") + " ETH";
+  },
+
+  withdrawCredits: async function() {
+    this.setStatus("Initiating transaction... (please wait)");
+
+    const { withdrawCompensation } = this.appContract.methods;
+    await withdrawCompensation().send({ from: this.currentUser });
+
+    this.setStatus("Transaction complete!");
+  },
 
   setStatus: function(message) {
     const status = document.getElementById("status");
@@ -258,11 +300,11 @@ window.addEventListener("load", function() {
     window.ethereum.enable(); // get permission to access accounts
   } else {
     console.warn(
-      "No web3 detected. Falling back to http://127.0.0.1:9545. You should remove this fallback when you deploy live",
+      "No web3 detected. Falling back to http://127.0.0.1:8545. You should remove this fallback when you deploy live",
     );
     // fallback - use your fallback strategy (local node / hosted node + in-dapp id mgmt / fail)
     App.web3 = new Web3(
-      new Web3.providers.HttpProvider("http://127.0.0.1:9545"),
+      new Web3.providers.HttpProvider("http://127.0.0.1:8545"),
     );
   }
 
