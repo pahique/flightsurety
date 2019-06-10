@@ -7,13 +7,16 @@ import dateFormat from 'dateformat';
 
 const App = {
   web3: null,
+  web3ws: null,
   owner: null,
   currentUser: null,
   appContract: null,
   dataContract: null,
+  dataContractWs: null,
 
   start: async function() {
     const { web3 } = this;
+    const { web3ws } = this;
 
     try {
       // get contract instance
@@ -28,6 +31,25 @@ const App = {
         configArtifact[network].dataAddress,
       );
       console.log("DataContract:", this.dataContract);
+      this.dataContractWs = new web3ws.eth.Contract(
+        dataContractArtifact.abi,
+        configArtifact[network].dataAddress,
+      );
+      console.log("DataContractWs:", this.dataContractWs);
+
+      this.dataContractWs.events.AirlineRegistered({fromBlock: 0}, (err, events) => {
+        console.log("Received event through websocket", events, err);
+        if (!err) {   
+          document.getElementById("airlinesList").innerHTML = "";
+          for (event of events) {
+            console.log(event);
+            var itemNode = document.createElement("li");                 
+            var textnode = document.createTextNode(event.returnValues.name + " - " + event.returnValues.account);         
+            itemNode.appendChild(textnode);                              
+            document.getElementById("airlinesList").appendChild(itemNode);     
+          }
+        } 
+      });
 
       console.log("appAddress:", configArtifact[network].appAddress);
       this.appContract = new web3.eth.Contract(
@@ -327,11 +349,13 @@ window.addEventListener("load", function() {
     // use MetaMask's provider
     App.web3 = new Web3(window.ethereum);
     window.ethereum.enable(); // get permission to access accounts
+    App.web3ws = new Web3(new Web3.providers.WebsocketProvider('ws://127.0.0.1:8545'));
   } else {
     console.warn(
       "No web3 detected. Falling back to http://127.0.0.1:8545. You should remove this fallback when you deploy live",
     );
     // fallback - use your fallback strategy (local node / hosted node + in-dapp id mgmt / fail)
+    App.web3ws = new Web3(new Web3.providers.WebsocketProvider('ws://127.0.0.1:8545'));
     App.web3 = new Web3(
       new Web3.providers.HttpProvider("http://127.0.0.1:8545"),
     );

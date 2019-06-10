@@ -36,6 +36,7 @@ contract FlightSuretyData {
     }
 
     mapping(bytes32 => FlightInsurance[]) private flightInsurances;
+    mapping(bytes32 => bool) private compensationsCredited;               // indicates flights whose compensations have already been credited
     mapping(address => uint256) private insureeToPayout;                 // credits available for each insuree 
 
     event AirlineRegistered(address indexed account, string name);
@@ -225,12 +226,15 @@ contract FlightSuretyData {
     */
     function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 scheduledDepartureTime) external requireIsCallerAuthorized {
         bytes32 flightKey = getFlightKey(airline, flight, scheduledDepartureTime);
+        require(!compensationsCredited[flightKey], "Insurance compensations have already been credited for this flight");
         for (uint i=0; i < flightInsurances[flightKey].length; i++) {    // add credits to each insuree who bought insurance for this flight
             address insuree = flightInsurances[flightKey][i].insuree;
-            insureeToPayout[insuree] = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
-            airlines[airline].funds = airlines[airline].funds.sub(insureeToPayout[insuree]);
-            emit InsuranceCredited(insuree, insureeToPayout[insuree]);
+            uint256 amountToReceive = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
+            insureeToPayout[insuree] = insureeToPayout[insuree].add(amountToReceive);
+            airlines[airline].funds = airlines[airline].funds.sub(amountToReceive);
+            emit InsuranceCredited(insuree, amountToReceive);
         }
+        compensationsCredited[flightKey] = true;
         emit InsuranceCreditAvailable(airline, flight, scheduledDepartureTime);
     }
 
