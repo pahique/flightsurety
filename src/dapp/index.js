@@ -186,6 +186,7 @@ const App = {
               + departure + " (" + event.returnValues.departureAirport + ") | " 
               + arrival + " (" + event.returnValues.arrivalAirport + ") | " 
               + App.getShortAddress(event.returnValues.airline);
+            option.value = event.returnValues.flight + "-" + event.returnValues.scheduledDepartureTime + "-" + event.returnValues.airline;
             document.getElementById("flightSelect").add(option); 
           }  
         }
