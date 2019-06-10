@@ -147,12 +147,20 @@ contract FlightSuretyApp {
         }
     }
 
+   /**
+    * @dev Update the name of the airline (optional)
+    *
+    */   
     function updateAirlineName(string calldata newName) external requireIsOperational {
         require(flightSuretyData.isAirline(msg.sender), "Caller must be a registered airline");
         require(bytes(newName).length == 0, "Name is required");
         flightSuretyData.updateAirlineName(msg.sender, newName);
     }
 
+   /**
+    * @dev Send funds to the contract, to be called by the airlines
+    *
+    */   
     function fund() external payable requireIsOperational {
         require(flightSuretyData.isAirline(msg.sender), "Caller must be a registered airline");
         flightSuretyData.fund.value(msg.value)(msg.sender);
@@ -170,6 +178,7 @@ contract FlightSuretyApp {
                     string calldata arrivalAirport) external {
         require(flightSuretyData.isAirline(msg.sender), "Only airlines can register flights");
         require(flightSuretyData.isFunded(msg.sender), "Caller airline has not been funded yet");
+        require(scheduledDepartureTime > block.timestamp, "Flight should be in the future");
         require(scheduledArrivalTime > scheduledDepartureTime, "Arrival should be after departure");
         bytes32 key = getFlightKey(msg.sender, flight, scheduledDepartureTime);
         flights[key] = Flight(
@@ -181,7 +190,7 @@ contract FlightSuretyApp {
             msg.sender, 
             departureAirport, 
             arrivalAirport
-        );        
+        );
         emit FlightRegistered(msg.sender, flight, flight, scheduledDepartureTime, scheduledArrivalTime, departureAirport, arrivalAirport);
     }
     
@@ -195,12 +204,19 @@ contract FlightSuretyApp {
         flights[key].statusCode = statusCode;
     }
 
+   /**
+    * @dev Get the current status code and its update timestamp
+    *
+    */  
     function getFlightStatusInfo(address airline, string calldata flight, uint256 scheduledDepartureTime) external view returns(uint256 statusCode, uint256 updateTimestamp) {
         bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         return (flights[key].statusCode, flights[key].updatedTimestamp);
     }
 
-    // Generate a request for oracles to fetch flight information
+   /**
+    * @dev Generate a request for oracles to fetch flight information
+    *
+    */  
     function fetchFlightStatus(address airline, string calldata flight, uint256 scheduledDepartureTime) external {
         uint8 index = getRandomIndex(msg.sender);
         // Generate a unique key for storing the request
@@ -209,6 +225,10 @@ contract FlightSuretyApp {
         emit OracleRequest(index, airline, flight, scheduledDepartureTime);
     } 
 
+   /**
+    * @dev Buy insurance for a flight
+    *
+    */  
     function buyInsurance(address airline, string calldata flight, uint256 scheduledDepartureTime) external payable requireIsOperational {
         require(!flightSuretyData.isAirline(msg.sender), "Airlines cannot buy flight insurance");
         require(msg.value <= MAX_INSURANCE_COST, "Value sent is above maximum allowed");
@@ -217,6 +237,11 @@ contract FlightSuretyApp {
         flightSuretyData.buy.value(msg.value)(msg.sender, airline, flight, scheduledDepartureTime);
     }
 
+   /**
+    * @dev Claim compensation for a delayed flight. If it is legitimate claim, proper credit is added 
+    *      to all insurees that bought insurance for that flight
+    *
+    */  
     function claimCompensation(address airline, string calldata flight, uint256 scheduledDepartureTime) external {
         bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         require(flights[key].statusCode == STATUS_CODE_LATE_AIRLINE, "Status of the flight does not fit the requirements for compensation");
@@ -225,17 +250,29 @@ contract FlightSuretyApp {
         flightSuretyData.creditInsurees(INSURANCE_RETURN_PERCENTAGE, airline, flight, scheduledDepartureTime);
     }
 
+   /**
+    * @dev Allow the insuree to withdraw the credits
+    *
+    */  
     function withdrawCompensation() external requireIsOperational {
         require(flightSuretyData.getAmountToBeReceived(msg.sender) > 0, "No compensation to be received");
         flightSuretyData.pay(msg.sender);
     }
 
+   /**
+    * @dev Get the amount paid by the insuree as insurance for a flight
+    *
+    */  
     function getAmountPaidByInsuree(address airline, string calldata flight, uint256 scheduledDepartureTime) external view returns(uint256) {
         bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         require(flights[key].isRegistered == true, "Flight not registered");
         return flightSuretyData.getAmountPaidByInsuree(msg.sender, airline, flight, scheduledDepartureTime);
     }
 
+   /**
+    * @dev Show the credits available for the insuree (caller)
+    *
+    */  
     function getAmountToBeReceived() external view returns(uint256) {
         return flightSuretyData.getAmountToBeReceived(msg.sender);
     }
@@ -282,7 +319,7 @@ contract FlightSuretyApp {
     // Oracles track this and if they have a matching index
     // they fetch data and submit a response
     event OracleRequest(uint8 index, address airline, string flight, uint256 scheduledDepartureTime);
-    event OracleRegistered(address account);
+    event OracleRegistered(address account, uint8[3] indexes);
 
 
     // Register an oracle with the contract
@@ -294,7 +331,7 @@ contract FlightSuretyApp {
         uint8[3] memory indexes = generateIndexes(msg.sender);
 
         oracles[msg.sender] = Oracle({ isRegistered: true, indexes: indexes });
-        emit OracleRegistered(msg.sender);
+        emit OracleRegistered(msg.sender, indexes);
     }
 
     function getMyIndexes() view external returns(uint8[3] memory) {
@@ -367,7 +404,6 @@ contract FlightSuretyApp {
     }
 
 // endregion
-
 }   
 
 // Interface to the data contract FlightSuretyData.sol

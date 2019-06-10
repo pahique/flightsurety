@@ -84,12 +84,12 @@ flightSuretyApp.events.FlightStatusInfo({
           oracles.set(account, indexes);
         });
       })
-      .on('receipt', (receipt) => {
-        console.log("receipt");
-      })
-      .on('confirmation', (confirmationNumber, receipt) => {
-        console.log("confirmationNumber", confirmationNumber);
-      })
+      // .on('receipt', (receipt) => {
+      //   console.log("receipt");
+      // })
+      // .on('confirmation', (confirmationNumber, receipt) => {
+      //   console.log("confirmationNumber", confirmationNumber);
+      // })
       .on('error', (error) => {
         console.log("Oracle probably is already registered");
         flightSuretyApp.methods.getMyIndexes().call({from: account}, (error, indexes) => {

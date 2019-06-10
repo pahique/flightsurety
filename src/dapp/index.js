@@ -140,10 +140,31 @@ const App = {
     const origAirport = document.getElementById("departureAirport").value;
     const destAirport = document.getElementById("arrivalAirport").value;
 
+    let departureTimestamp; 
+    let arrivalTimestamp;
+    try {
+      let year = departureTime.substring(0, 4);
+      let month = departureTime.substring(4, 6) - 1;
+      let day = departureTime.substring(6, 8);
+      let hour = departureTime.substring(8, 10);
+      let minute = departureTime.substring(10, 12);
+      departureTimestamp = Math.trunc(new Date(year, month, day, hour, minute).getTime() / 1000);
+      console.log("departure", departureTimestamp);
+    } catch(e) {}
+    try {
+      let year = arrivalTime.substring(0, 4);
+      let month = arrivalTime.substring(4, 6) - 1;
+      let day = arrivalTime.substring(6, 8);
+      let hour = arrivalTime.substring(8, 10);
+      let minute = arrivalTime.substring(10, 12);
+      arrivalTimestamp = Math.trunc(new Date(year, month, day, hour, minute).getTime() / 1000);
+      console.log("arrival", arrivalTimestamp);
+    } catch(e) {}
+
     this.setStatus("Initiating transaction... (please wait)");
 
     const { registerFlight } = this.appContract.methods;
-    await registerFlight(flight, departureTime, arrivalTime, origAirport, destAirport).send({ from: this.currentUser });
+    await registerFlight(flight, departureTimestamp, arrivalTimestamp, origAirport, destAirport).send({ from: this.currentUser });
 
     this.setStatus("Transaction complete!");
   },
@@ -273,7 +294,7 @@ const App = {
     const creditsAmount = await getAmountToBeReceived().call({from: this.currentUser});
     console.log("creditsAmount:", BigNumber(creditsAmount).toNumber());
     let creditsElement = document.getElementById("credits");
-    creditsElement.innerHTML = web3.fromWei(BigNumber(creditsAmount).toNumber(), "ether") + " ETH";
+    creditsElement.value = web3.fromWei(BigNumber(creditsAmount).toNumber(), "ether") + " ETH";
   },
 
   withdrawCredits: async function() {

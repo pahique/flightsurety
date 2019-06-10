@@ -19,24 +19,24 @@ contract FlightSuretyData {
         address account;
         bool isRegistered;
         bool isFunded;
-        uint256 funds;
+        uint256 funds;  // this is just to control how much of the total balance the airlines are using
     }
 
-    mapping(address => Airline) private airlines;  
+    mapping(address => Airline) private airlines;
     uint256 internal countAirlines = 0;
 
-    uint256 public minimumFunds = 10 ether;
+    uint256 public minimumFunds = 10 ether; 
 
     struct FlightInsurance {
-        address payable insuree;
-        uint256 amountPaid;
+        address payable insuree;  
+        uint256 amountPaid;          // amount paid when buying the insurance
         address airline;
         string flight;
         uint256 scheduledDepartureTime;
     }
 
     mapping(bytes32 => FlightInsurance[]) private flightInsurances;
-    mapping(address => uint256) private insureeToPayout;
+    mapping(address => uint256) private insureeToPayout;                 // credits available for each insuree 
 
     event AirlineRegistered(address indexed account, string name);
     event AirlineFunded(address indexed account);
@@ -77,6 +77,10 @@ contract FlightSuretyData {
         _;  // All modifiers require an "_" which indicates where the function body will be added
     }
 
+    /**
+    * @dev Modifier that requires the caller address either be registered as "authorized" or be the owner of the contract.
+    *      This is used to avoid that other accounts may alter this data contract.
+    */
     modifier requireIsCallerAuthorized() {
         require(authorizedCallers[msg.sender] == true || msg.sender == contractOwner, "Caller is not authorized");
         _;
@@ -114,14 +118,25 @@ contract FlightSuretyData {
         operational = mode;
     }
 
+    /**
+    * @dev Update the minimum funds required for an airline to operate the contract
+    *      Can only be called by the contract owner
+    */    
     function updateMinimumFunds(uint256 newAmount) external requireContractOwner {
         minimumFunds = newAmount;
     }
 
+    /**
+    * @dev Add a new address to the list of authorized callers
+    *      Can only be called by the contract owner
+    */    
     function authorizeCaller(address contractAddress) external requireContractOwner {
         authorizedCallers[contractAddress] = true;
     }
 
+    /**
+    * @dev Removes an address from the list of authorized callers
+    */    
     function deauthorizeContract(address contractAddress) external requireContractOwner {
         delete authorizedCallers[contractAddress];
     }
@@ -144,14 +159,23 @@ contract FlightSuretyData {
         emit AirlineRegistered(account, name);
     }
 
+   /**
+    * @dev Indicate if the address belongs to an airline or not
+    */   
     function isAirline(address account) public view returns(bool) {
         return airlines[account].isRegistered == true;
     }
 
+   /**
+    * @dev Get the quantity of registered airlines
+    */   
     function getNumAirlines() external view returns(uint256) {
         return countAirlines;
     }
 
+   /**
+    * @dev Update the name of the airline
+    */   
     function updateAirlineName(address airline, string calldata newName) external requireIsCallerAuthorized {
         airlines[airline].name = newName;
     }
@@ -172,10 +196,16 @@ contract FlightSuretyData {
         }
     }
 
+   /**
+    * @dev Indicate if the airline already received the required initial funding
+    */   
     function isFunded(address airline) external view requireIsCallerAuthorized returns(bool) {
         return airlines[airline].isFunded;
     }
 
+   /**
+    * @dev Return the current funds of the airline, just in case some check becomes necessary.
+    */   
     function getCurrentFunds(address airline) external view requireIsCallerAuthorized returns(uint256) {
         return airlines[airline].funds;
     }
@@ -185,6 +215,7 @@ contract FlightSuretyData {
     */   
     function buy(address payable byer, address airline, string calldata flight, uint256 scheduledDepartureTime) external payable requireIsCallerAuthorized {
         bytes32 flightKey = getFlightKey(airline, flight, scheduledDepartureTime);
+        airlines[airline].funds = airlines[airline].funds.add(msg.value);  // assuming that the insurance amount is attached to the airline funds
         flightInsurances[flightKey].push(FlightInsurance(byer, msg.value, airline, flight, scheduledDepartureTime));
         emit InsuranceBought(byer, msg.value, airline, flight, scheduledDepartureTime);
     }
@@ -194,7 +225,7 @@ contract FlightSuretyData {
     */
     function creditInsurees(uint256 percentage, address airline, string calldata flight, uint256 scheduledDepartureTime) external requireIsCallerAuthorized {
         bytes32 flightKey = getFlightKey(airline, flight, scheduledDepartureTime);
-        for (uint i=0; i < flightInsurances[flightKey].length; i++) {
+        for (uint i=0; i < flightInsurances[flightKey].length; i++) {    // add credits to each insuree who bought insurance for this flight
             address insuree = flightInsurances[flightKey][i].insuree;
             insureeToPayout[insuree] = flightInsurances[flightKey][i].amountPaid.mul(percentage).div(100);
             airlines[airline].funds = airlines[airline].funds.sub(insureeToPayout[insuree]);
@@ -213,6 +244,9 @@ contract FlightSuretyData {
         emit InsurancePaid(insuree, amount);
     }
 
+    /**
+     *  @dev Return the amount paid by the insuree when buying the insurance.
+    */
     function getAmountPaidByInsuree(address payable insuree, 
                                     address airline, 
                                     string calldata flight, 
@@ -228,6 +262,9 @@ contract FlightSuretyData {
         }
     }
 
+    /**
+     *  @dev Return the amount paid by the insuree when buying the insurance.
+    */
     function getAmountToBeReceived(address payable insuree) external view requireIsCallerAuthorized returns(uint256 amount) {
         return insureeToPayout[insuree];
     }
