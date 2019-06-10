@@ -17,7 +17,6 @@
         <p>Owner:&nbsp;<span id="owner">loading...</span></p>
         <p>Status:&nbsp;<span id="operational">loading...</span></p>
         <p>Current user:&nbsp;<span id="currentUser">loading...</span>&nbsp;<span id="isAirline"></span></p>
-        <p id="status"></p>
       </div>
     </section>
 
@@ -49,9 +48,9 @@
         <label for="flightNumber">Flight Number</label>
         <input id="flightNumber" type="text"/>
         <label for="departureTime">Scheduled Departure Time</label>
-        <input id="departureTime" type="number" placeholder="Example: 201906201300"/>
+        <input id="departureTime" type="datetime-local"/>
         <label for="arrivalTime">Scheduled Arrival Time</label>
-        <input id="arrivalTime" type="number" placeholder="Example: 201906201730"/>
+        <input id="arrivalTime" type="datetime-local"/>
         <label for="departureAirport">Departure Airport</label>
         <input id="departureAirport" type="text" maxlength="3"/>
         <label for="arrivalAirport">Arrival Airport</label>

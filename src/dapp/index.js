@@ -3,6 +3,7 @@ import appContractArtifact from "../../build/contracts/FlightSuretyApp.json";
 import dataContractArtifact from "../../build/contracts/FlightSuretyData.json";
 import configArtifact from "./config.json";
 import BigNumber from 'bignumber.js';
+import dateFormat from 'dateformat';
 
 const App = {
   web3: null,
@@ -143,21 +144,11 @@ const App = {
     let departureTimestamp; 
     let arrivalTimestamp;
     try {
-      let year = departureTime.substring(0, 4);
-      let month = departureTime.substring(4, 6) - 1;
-      let day = departureTime.substring(6, 8);
-      let hour = departureTime.substring(8, 10);
-      let minute = departureTime.substring(10, 12);
-      departureTimestamp = Math.trunc(new Date(year, month, day, hour, minute).getTime() / 1000);
+      departureTimestamp = Math.trunc(new Date(departureTime).getTime() / 1000);
       console.log("departure", departureTimestamp);
     } catch(e) {}
     try {
-      let year = arrivalTime.substring(0, 4);
-      let month = arrivalTime.substring(4, 6) - 1;
-      let day = arrivalTime.substring(6, 8);
-      let hour = arrivalTime.substring(8, 10);
-      let minute = arrivalTime.substring(10, 12);
-      arrivalTimestamp = Math.trunc(new Date(year, month, day, hour, minute).getTime() / 1000);
+      arrivalTimestamp = Math.trunc(new Date(arrivalTime).getTime() / 1000);
       console.log("arrival", arrivalTimestamp);
     } catch(e) {}
 
@@ -180,18 +171,30 @@ const App = {
           document.getElementById("flightSelect").innerHTML = "";
           for (event of events) {
             //console.log(event);
-            var itemNode = document.createElement("li");                 
-            var textnode = document.createTextNode(event.returnValues.flight + " - " + event.returnValues.scheduledDepartureTime + " - " + event.returnValues.airline);         
+            let itemNode = document.createElement("li");          
+            let departure = App.getFormattedDate(event.returnValues.scheduledDepartureTime);      
+            let arrival = App.getFormattedDate(event.returnValues.scheduledArrivalTime);      
+            let textnode = document.createTextNode(event.returnValues.flight + " — " 
+              + departure + " (" + event.returnValues.departureAirport + ") — " 
+              + arrival + " (" + event.returnValues.arrivalAirport + ") — " 
+              + App.getShortAddress(event.returnValues.airline));         
             itemNode.appendChild(textnode);                              
             document.getElementById("flightList").appendChild(itemNode);     
 
-            var option = document.createElement("option");                 
-            option.text = event.returnValues.flight + " - " + event.returnValues.scheduledDepartureTime + " - " + event.returnValues.airline;
+            let option = document.createElement("option");                 
+            option.text = event.returnValues.flight + " | " 
+              + departure + " (" + event.returnValues.departureAirport + ") | " 
+              + arrival + " (" + event.returnValues.arrivalAirport + ") | " 
+              + App.getShortAddress(event.returnValues.airline);
             document.getElementById("flightSelect").add(option); 
           }  
         }
       }
     });
+  },
+
+  getShortAddress: function(address) {
+    return address.substring(0, 6) + "..." + address.substring(address.length-4);
   },
 
   buyInsurance: async function() {
@@ -310,6 +313,10 @@ const App = {
     const status = document.getElementById("status");
     status.innerHTML = message;
   },
+
+  getFormattedDate: function(solidityTimestamp) {
+    return dateFormat(solidityTimestamp * 1000, "yyyy-mm-dd HH:MM");
+  }
 };
 
 window.App = App;
