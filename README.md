@@ -5,9 +5,9 @@ Blockchain project (Ethereum) for simple flight status and insurance, based on U
 
 Version used in this project:
 
-. Truffle v5.0.1 (core: 5.0.1)
-. Solidity - 0.5.2 (solc-js)
-. Node v8.9.4
+* Truffle v5.0.1 (core: 5.0.1)
+* Solidity - 0.5.2 (solc-js)
+* Node v8.9.4
 
 ## Install
 
