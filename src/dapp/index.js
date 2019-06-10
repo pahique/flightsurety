@@ -310,8 +310,8 @@ const App = {
   },
 
   setStatus: function(message) {
-    const status = document.getElementById("status");
-    status.innerHTML = message;
+    //const status = document.getElementById("status");
+    //status.innerHTML = message;
   },
 
   getFormattedDate: function(solidityTimestamp) {
