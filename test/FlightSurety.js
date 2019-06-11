@@ -109,7 +109,7 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline2 = accounts[2];
     // ACT
     try {
-        let minimumFunds = await config.flightSuretyData.minimumFunds.call();
+        let minimumFunds = await config.flightSuretyApp.minimumFunds.call();
         //console.log("minimumFunds", minimumFunds);
         await config.flightSuretyApp.fund({from: config.firstAirline, value: minimumFunds});
         await config.flightSuretyApp.registerAirline(airline2, "Airline 2", {from: config.firstAirline});
@@ -130,7 +130,7 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline5 = accounts[5];
     // ACT
     try {
-        let minimumFunds = await config.flightSuretyData.minimumFunds.call();
+        let minimumFunds = await config.flightSuretyApp.minimumFunds.call();
         await config.flightSuretyApp.fund({from: config.firstAirline, value: minimumFunds});
         await config.flightSuretyApp.registerAirline(airline3, "Airline 3", {from: config.firstAirline});
         await config.flightSuretyApp.registerAirline(airline4, "Airline 4", {from: config.firstAirline});
@@ -158,7 +158,7 @@ contract('Flight Surety Tests', async (accounts) => {
     let airline5 = accounts[5];
     // ACT
     try {
-        let minimumFunds = await config.flightSuretyData.minimumFunds.call();
+        let minimumFunds = await config.flightSuretyApp.minimumFunds.call();
         await config.flightSuretyApp.fund({from: airline2, value: minimumFunds});
         await config.flightSuretyApp.fund({from: airline3, value: minimumFunds});
         await config.flightSuretyApp.registerAirline(airline5, "Airline 5", {from: config.firstAirline});

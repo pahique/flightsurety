@@ -25,8 +25,6 @@ contract FlightSuretyData {
     mapping(address => Airline) private airlines;
     uint256 internal countAirlines = 0;
 
-    uint256 public minimumFunds = 10 ether; 
-
     struct FlightInsurance {
         address payable insuree;  
         uint256 amountPaid;          // amount paid when buying the insurance
@@ -40,7 +38,7 @@ contract FlightSuretyData {
     mapping(address => uint256) private insureeToPayout;                 // credits available for each insuree 
 
     event AirlineRegistered(address indexed account, string name);
-    event AirlineFunded(address indexed account);
+    event AirlineFunded(address indexed account, uint256 amount);
     event InsuranceBought(address indexed passenger, uint256 price, address airline, string flight, uint256 scheduledDepartureTime);
     event InsuranceCreditAvailable(address indexed airline, string indexed flight, uint256 indexed scheduledDepartureTime);
     event InsuranceCredited(address indexed insuree, uint256 amount);
@@ -120,14 +118,6 @@ contract FlightSuretyData {
     }
 
     /**
-    * @dev Update the minimum funds required for an airline to operate the contract
-    *      Can only be called by the contract owner
-    */    
-    function updateMinimumFunds(uint256 newAmount) external requireContractOwner {
-        minimumFunds = newAmount;
-    }
-
-    /**
     * @dev Add a new address to the list of authorized callers
     *      Can only be called by the contract owner
     */    
@@ -187,14 +177,13 @@ contract FlightSuretyData {
     */   
     function fund(address airline) external payable requireIsCallerAuthorized {
         incrementFunds(airline, msg.value);
+        airlines[airline].isFunded = true;   
+        emit AirlineFunded(airline, msg.value);
     }
 
+    // App contract checked for enough funds, the fallback function just increments it directly
     function incrementFunds(address airline, uint256 value) private {
         airlines[airline].funds = airlines[airline].funds.add(value);
-        if (airlines[airline].isFunded == false && airlines[airline].funds >= minimumFunds) {
-            airlines[airline].isFunded = true;
-            emit AirlineFunded(airline);
-        }
     }
 
    /**

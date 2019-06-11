@@ -28,6 +28,7 @@ contract FlightSuretyApp {
     uint256 private constant AIRLINES_THRESHOLD = 4;
     uint256 public constant MAX_INSURANCE_COST = 1 ether;
     uint256 public constant INSURANCE_RETURN_PERCENTAGE = 150;
+    uint256 public minimumFunds = 10 ether; 
 
     address public contractOwner;          // Account used to deploy contract
 
@@ -115,6 +116,14 @@ contract FlightSuretyApp {
     /********************************************************************************************/
 
   
+    /**
+    * @dev Update the minimum funds required for an airline to operate the contract
+    *      Can only be called by the contract owner
+    */    
+    function updateMinimumFunds(uint256 newAmount) external requireContractOwner {
+        minimumFunds = newAmount;
+    }
+
     function incrementVotes(address airline, address caller) internal {
         if (airlineVoters[airline][caller] == false)  {   // Count vote only once per airline
             airlineVoters[airline][caller] = true;
@@ -163,6 +172,7 @@ contract FlightSuretyApp {
     */   
     function fund() external payable requireIsOperational {
         require(flightSuretyData.isAirline(msg.sender), "Caller must be a registered airline");
+        require(msg.value >= minimumFunds, "Not enough funds");
         flightSuretyData.fund.value(msg.value)(msg.sender);
     }
  
