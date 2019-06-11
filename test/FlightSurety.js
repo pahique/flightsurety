@@ -219,6 +219,22 @@ contract('Flight Surety Tests', async (accounts) => {
     assert.equal(await config.flightSuretyData.getNumAirlines(), 6);
   });
 
+  it('(airline) cannot register a flight that departs in the past', async() => {
+    // ARRANGE
+    let passenger = config.testAddresses[0];
+    // ACT
+    try {
+        let flight = "AD4061";
+        let departureTimestamp = Math.trunc(((new Date()).getTime() - 3*3600) / 1000);
+        let arrivalTimestamp = Math.trunc(((new Date()).getTime() + 5*3600) / 1000);
+        let amountPaid = web3.utils.toWei("1.1", "ether");
+        await expectThrow(config.flightSuretyApp.registerFlight(flight, departureTimestamp, arrivalTimestamp, "VCP", "POA", {from: config.firstAirline}));
+    }
+    catch(e) {
+        assert.fail(e.message);
+    }
+  });
+
   it('(passenger) cannot buy insurance for a flight paying more than 1 ether', async() => {
     // ARRANGE
     let passenger = config.testAddresses[0];

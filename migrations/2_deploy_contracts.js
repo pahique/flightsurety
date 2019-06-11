@@ -3,9 +3,8 @@ const FlightSuretyData = artifacts.require("FlightSuretyData");
 const fs = require('fs');
 
 module.exports = function(deployer, network, accounts) {
-
-    let firstAirline = '0xf17f52151EbEF6C7334FAD080c5704D77216b732';
-    //let firstAirline = accounts[1];
+    //console.log("accounts", accounts);
+    let firstAirline = accounts[1];
     let firstAirlineName = 'Airline One';
     deployer.deploy(FlightSuretyData, firstAirline, firstAirlineName).then(() => {
         return FlightSuretyData.deployed();
@@ -14,7 +13,7 @@ module.exports = function(deployer, network, accounts) {
             dataContractInstance.authorizeCaller(FlightSuretyApp.address);
             let config = {
                 localhost: {
-                    url: 'http://localhost:8545',
+                    url: network == 'development' ? 'http://localhost:8545' : 'wss://rinkeby.infura.io/ws/v3/8e013dba7e4c494aa93d12d42fd537b7',
                     dataAddress: FlightSuretyData.address,
                     appAddress: FlightSuretyApp.address
                 }

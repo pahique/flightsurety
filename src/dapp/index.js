@@ -7,12 +7,11 @@ import dateFormat from 'dateformat';
 
 const App = {
   web3: null,
-  web3ws: null,
+  //web3ws: null,
   owner: null,
   currentUser: null,
   appContract: null,
   dataContract: null,
-  dataContractWs: null,
 
   start: async function() {
     const { web3 } = this;
@@ -23,7 +22,6 @@ const App = {
       const networkId = await web3.eth.net.getId();
       console.log("networkId:", networkId);
       //const deployedNetwork = appContractArtifact.networks[networkId];
-      //console.log("deployed network:", deployedNetwork);
       let network = Object.keys(configArtifact)[0];
       console.log("dataAddress:", configArtifact[network].dataAddress);
       this.dataContract = new web3.eth.Contract(
@@ -31,25 +29,6 @@ const App = {
         configArtifact[network].dataAddress,
       );
       console.log("DataContract:", this.dataContract);
-      this.dataContractWs = new web3ws.eth.Contract(
-        dataContractArtifact.abi,
-        configArtifact[network].dataAddress,
-      );
-      console.log("DataContractWs:", this.dataContractWs);
-
-      this.dataContractWs.events.AirlineRegistered({fromBlock: 0}, (err, events) => {
-        console.log("Received event through websocket", events, err);
-        if (!err) {   
-          document.getElementById("airlinesList").innerHTML = "";
-          for (event of events) {
-            console.log(event);
-            var itemNode = document.createElement("li");                 
-            var textnode = document.createTextNode(event.returnValues.name + " - " + event.returnValues.account);         
-            itemNode.appendChild(textnode);                              
-            document.getElementById("airlinesList").appendChild(itemNode);     
-          }
-        } 
-      });
 
       console.log("appAddress:", configArtifact[network].appAddress);
       this.appContract = new web3.eth.Contract(
@@ -64,7 +43,7 @@ const App = {
       const currentUserElement = document.getElementById("currentUser");
       currentUserElement.innerHTML = this.currentUser;
       let self = this;
-      var accountInterval = setInterval(async function() {
+      let accountRefreshInterval = setInterval(async function() {
         let currentAccounts = await web3.eth.getAccounts();
         if (currentAccounts[0] !== self.currentUser) {
           self.currentUser = currentAccounts[0];
@@ -125,7 +104,7 @@ const App = {
           for (event of events) {
             //console.log(event);
             var itemNode = document.createElement("li");                 
-            var textnode = document.createTextNode(event.returnValues.name + " - " + event.returnValues.account);         
+            var textnode = document.createTextNode(event.returnValues.name + " — " + event.returnValues.account);         
             itemNode.appendChild(textnode);                              
             document.getElementById("airlinesList").appendChild(itemNode);     
           }
@@ -137,23 +116,19 @@ const App = {
     const address = document.getElementById("airlineAddress").value;
     const name = document.getElementById("airlineName").value;
 
-    this.setStatus("Initiating transaction... (please wait)");
-
     const { registerAirline } = this.appContract.methods;
-    await registerAirline(address, name).send({ from: this.currentUser });
-
-    this.setStatus("Transaction complete!");
+    await registerAirline(address, name).send({ from: this.currentUser })
+    .on('transactionHash', (hash) => {
+      App.fetchAirlines();
+    });
   },
 
   sendFunds: async function() {
     const fundsToSend = parseInt(document.getElementById("fundsToSend").value);
     let amount = web3.toWei(fundsToSend, "ether");
-    this.setStatus("Initiating transaction... (please wait)");
 
     const { fund } = this.appContract.methods;
     await fund().send({ from: this.currentUser, value: amount });
-
-    this.setStatus("Transaction complete!");
   },
 
   registerFlight: async function() {
@@ -174,12 +149,11 @@ const App = {
       console.log("arrival", arrivalTimestamp);
     } catch(e) {}
 
-    this.setStatus("Initiating transaction... (please wait)");
-
     const { registerFlight } = this.appContract.methods;
-    await registerFlight(flight, departureTimestamp, arrivalTimestamp, origAirport, destAirport).send({ from: this.currentUser });
-
-    this.setStatus("Transaction complete!");
+    await registerFlight(flight, departureTimestamp, arrivalTimestamp, origAirport, destAirport).send({ from: this.currentUser })
+    .on('transactionHash', (hash) => {
+      App.fetchFlights();
+    });
   },
 
   fetchFlights: async function() {
@@ -228,12 +202,12 @@ const App = {
     let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
     let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
     console.log("flightInfoArray", flightInfoArray);
-    this.setStatus("Initiating transaction... (please wait)");
 
     const { buyInsurance } = this.appContract.methods;
-    await buyInsurance(flightInfoArray[2], flightInfoArray[0], flightInfoArray[1]).send({ from: this.currentUser, value: amount });
-
-    this.setStatus("Transaction complete!");
+    await buyInsurance(flightInfoArray[2], flightInfoArray[0], flightInfoArray[1]).send({ from: this.currentUser, value: amount })
+    .on('transactionHash', (hash) => {
+      App.fetchInsurances();
+    });
   },
 
   fetchInsurances: function () {
@@ -248,7 +222,11 @@ const App = {
             try {
               let itemNode = document.createElement("li");                 
               let priceEth = web3.fromWei(BigNumber(event.returnValues.price).toNumber(), "ether");
-              let textnode = document.createTextNode(event.returnValues.passenger + " - " + event.returnValues.flight + " - " + priceEth + " ETH");         
+              let textnode = document.createTextNode(event.returnValues.flight + " — " + event.returnValues.passenger + " — " + priceEth + " ETH");         
+              // let textnode = document.createTextNode(App.getShortAddress(event.returnValues.passenger) 
+              //   + " - " + event.returnValues.flight 
+              //   + " - " + App.getFormattedDate(event.returnValues.scheduledDepartureTime)
+              //   + " - " + priceEth + " ETH");         
               itemNode.appendChild(textnode);                              
               document.getElementById("insuranceList").appendChild(itemNode);     
             } catch(err) {
@@ -265,12 +243,9 @@ const App = {
     let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
     let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
     console.log("flightInfoArray", flightInfoArray);
-    this.setStatus("Initiating transaction... (please wait)");
 
     const { fetchFlightStatus } = this.appContract.methods;
     await fetchFlightStatus(flightInfoArray[2], flightInfoArray[0], flightInfoArray[1]).send({ from: this.currentUser });
-
-    this.setStatus("Transaction complete!");
   },
 
   getFlightStatusInfo: async function () {
@@ -307,12 +282,12 @@ const App = {
     const flightSelect = document.getElementById("flightSelect");
     let flightInfo = flightSelect.options[flightSelect.selectedIndex].value;
     let flightInfoArray = flightInfo.split("-").map(item => item.trim()); // [flight, scheduledDepartureTime, airline]
-    this.setStatus("Initiating transaction... (please wait)");
 
     const { claimCompensation } = this.appContract.methods;
-    await claimCompensation(flightInfoArray[2], flightInfoArray[0], flightInfoArray[1]).send({from: this.currentUser});
-
-    this.setStatus("Transaction complete!");
+    await claimCompensation(flightInfoArray[2], flightInfoArray[0], flightInfoArray[1]).send({from: this.currentUser})
+    .on('transactionHash', (hash) => {
+      App.checkCredits();
+    });
   },
 
   checkCredits: async function() {
@@ -324,17 +299,11 @@ const App = {
   },
 
   withdrawCredits: async function() {
-    this.setStatus("Initiating transaction... (please wait)");
-
     const { withdrawCompensation } = this.appContract.methods;
-    await withdrawCompensation().send({ from: this.currentUser });
-
-    this.setStatus("Transaction complete!");
-  },
-
-  setStatus: function(message) {
-    //const status = document.getElementById("status");
-    //status.innerHTML = message;
+    await withdrawCompensation().send({ from: this.currentUser })
+    .on('transactionHash', (hash) => {
+      App.checkCredits();
+    });
   },
 
   getFormattedDate: function(solidityTimestamp) {
@@ -349,13 +318,13 @@ window.addEventListener("load", function() {
     // use MetaMask's provider
     App.web3 = new Web3(window.ethereum);
     window.ethereum.enable(); // get permission to access accounts
-    App.web3ws = new Web3(new Web3.providers.WebsocketProvider('ws://127.0.0.1:8545'));
+    //App.web3ws = new Web3(new Web3.providers.WebsocketProvider('ws://127.0.0.1:8545'));
   } else {
     console.warn(
       "No web3 detected. Falling back to http://127.0.0.1:8545. You should remove this fallback when you deploy live",
     );
     // fallback - use your fallback strategy (local node / hosted node + in-dapp id mgmt / fail)
-    App.web3ws = new Web3(new Web3.providers.WebsocketProvider('ws://127.0.0.1:8545'));
+    //App.web3ws = new Web3(new Web3.providers.WebsocketProvider('ws://127.0.0.1:8545'));
     App.web3 = new Web3(
       new Web3.providers.HttpProvider("http://127.0.0.1:8545"),
     );

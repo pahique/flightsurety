@@ -231,6 +231,7 @@ contract FlightSuretyApp {
     */  
     function buyInsurance(address airline, string calldata flight, uint256 scheduledDepartureTime) external payable requireIsOperational {
         require(!flightSuretyData.isAirline(msg.sender), "Airlines cannot buy flight insurance");
+        require(block.timestamp < scheduledDepartureTime, "Insurance should be bought before the scheduled departure of the flight");
         require(msg.value <= MAX_INSURANCE_COST, "Value sent is above maximum allowed");
         bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         require(flights[key].isRegistered == true, "Flight not registered");

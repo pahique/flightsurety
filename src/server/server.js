@@ -14,8 +14,11 @@ const STATUS_CODE_LATE_TECHNICAL = 40;
 const STATUS_CODE_LATE_OTHER = 50;
 
 let network = Object.keys(configJson)[0];
+//console.log("network", network);
 let config = configJson[network];
+//console.log("config", config);
 let web3 = new Web3(new Web3.providers.WebsocketProvider(config.url.replace('http', 'ws')));
+//let web3 = new Web3(new HDWalletProvider(mnemonic, config.url, 0, 10));
 let flightSuretyApp = new web3.eth.Contract(appContractJson.abi, config.appAddress);
 let oracles = new Map();
 
@@ -29,6 +32,7 @@ function getRandomStatusCode() {
   else if (n >= 0) return STATUS_CODE_UNKNOWN;
 }
 
+// Monitors requests and submit random responses
 flightSuretyApp.events.OracleRequest({
     fromBlock: 0
   }, function (error, result) {
@@ -55,6 +59,7 @@ flightSuretyApp.events.OracleRequest({
     }
 });
 
+// Logs results from responses
 flightSuretyApp.events.FlightStatusInfo({
   fromBlock: 0
 }, function (error, result) {
@@ -78,7 +83,7 @@ flightSuretyApp.events.FlightStatusInfo({
       console.log("Registering oracle with account", account);
       flightSuretyApp.methods.registerOracle().send({from: account, value: fee, gas: 6000000})
       .on('transactionHash', (hash) => {
-        console.log("hash", hash);
+        console.log("transactionHash:", hash);
         flightSuretyApp.methods.getMyIndexes().call({from: account}, (error, indexes) => {
           console.log("Indexes:", account, indexes);
           oracles.set(account, indexes);
