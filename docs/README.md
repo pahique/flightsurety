@@ -1,6 +1,6 @@
 # Instructions on how to use the DApp
 
-1. Select the first Airline as current user. 
+1. Select the first Airline as current user. Note: Contract status can only be changed by the contract owner.
 
    ![alt text](https://github.com/pahique/flightsurety/blob/master/docs/1.contract-info1.png "Contract Information (other user)")
    ![alt text](https://github.com/pahique/flightsurety/blob/master/docs/2.contract-info2.png "Contract Information (airline)")

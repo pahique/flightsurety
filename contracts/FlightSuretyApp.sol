@@ -120,7 +120,7 @@ contract FlightSuretyApp {
     * @dev Update the minimum funds required for an airline to operate the contract
     *      Can only be called by the contract owner
     */    
-    function updateMinimumFunds(uint256 newAmount) external requireContractOwner {
+    function updateMinimumFunds(uint256 newAmount) external requireContractOwner requireIsOperational {
         minimumFunds = newAmount;
     }
 
@@ -185,7 +185,7 @@ contract FlightSuretyApp {
                     uint256 scheduledDepartureTime, 
                     uint256 scheduledArrivalTime,
                     string calldata departureAirport, 
-                    string calldata arrivalAirport) external {
+                    string calldata arrivalAirport) external requireIsOperational {
         require(flightSuretyData.isAirline(msg.sender), "Only airlines can register flights");
         require(flightSuretyData.isFunded(msg.sender), "Caller airline has not been funded yet");
         require(scheduledDepartureTime > block.timestamp, "Flight should be in the future");
@@ -227,7 +227,7 @@ contract FlightSuretyApp {
     * @dev Generate a request for oracles to fetch flight information
     *
     */  
-    function fetchFlightStatus(address airline, string calldata flight, uint256 scheduledDepartureTime) external {
+    function fetchFlightStatus(address airline, string calldata flight, uint256 scheduledDepartureTime) external requireIsOperational {
         uint8 index = getRandomIndex(msg.sender);
         // Generate a unique key for storing the request
         bytes32 key = keccak256(abi.encodePacked(index, airline, flight, scheduledDepartureTime));
@@ -253,7 +253,7 @@ contract FlightSuretyApp {
     *      to all insurees that bought insurance for that flight
     *
     */  
-    function claimCompensation(address airline, string calldata flight, uint256 scheduledDepartureTime) external {
+    function claimCompensation(address airline, string calldata flight, uint256 scheduledDepartureTime) external requireIsOperational {
         bytes32 key = getFlightKey(airline, flight, scheduledDepartureTime);
         require(flights[key].statusCode == STATUS_CODE_LATE_AIRLINE, "Status of the flight does not fit the requirements for compensation");
         require(block.timestamp > flights[key].scheduledArrivalTime, "Claim not allowed yet, flight may still get on schedule");

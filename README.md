@@ -47,5 +47,11 @@ To build dapp for prod:
 
 Deploy the contents of the ./dist folder
 
+## Contract operation
+
+* In order to enable/disable the contract operation (both Data and App), there is a function called setOperatingStatus() on the Data contract, that can be called only by the owner of the contract. Once the contract is not operational, no functions that change the state of the contracts can be called.
+
+* In order to attach a different App contract to the Data contract, it is required that the owner calls the function authorizeCaller() on the Data contract, passing the new App contract address as parameter. 
+
 
 
