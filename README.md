@@ -25,7 +25,11 @@ To run truffle tests:
 * `truffle test ./test/FlightSurety.js`
 * `truffle test ./test/Oracles.js`
 
-To use the dapp:
+Start ganache client with 50 accounts, using a mnemonic of your choice:
+
+* `ganache-cli -a 50 -m "<mnemonic>"`
+
+Migrate the project and run the dapp:
 
 * `truffle migrate --reset`
 * `npm run dapp`
