@@ -15,36 +15,37 @@ This repository contains Smart Contract code in Solidity (using Truffle), tests 
 
 To install, download or clone the repo, then:
 
-`npm install`
-`truffle compile`
+* `npm install`
+* `truffle compile`
 
 ## Develop Client
 
 To run truffle tests:
 
-`truffle test ./test/FlightSurety.js`
-`truffle test ./test/Oracles.js`
+* `truffle test ./test/FlightSurety.js`
+* `truffle test ./test/Oracles.js`
 
 To use the dapp:
 
-`truffle migrate`
-`npm run dapp`
+* `truffle migrate --reset`
+* `npm run dapp`
 
 To view dapp:
 
-`http://localhost:8000`
+* `http://localhost:8000`
 
 ## Develop Server
 
-`npm run server`
-`truffle test ./test/Oracles.js`
+On another terminal (command prompt), run:
+
+* `npm run server`
 
 ## Deploy
 
 To build dapp for prod:
-`npm run dapp:prod`
+* `npm run dapp:prod`
 
-Deploy the contents of the ./dapp folder
+Deploy the contents of the ./dist folder
 
 
 
